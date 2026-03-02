@@ -39,14 +39,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Loading any team's stats for a given season returns only data dated on or before that year's Selection Sunday (cutoff enforcement verified)
   4. First Four play-in games are correctly distinguished from Round of 64 games in the stored records
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Project environment setup (uv, Python 3.12, pyproject.toml, DuckDB/SQLite schema, directory structure)
-- [ ] 01-02: Kaggle March Machine Learning Mania ingestion (download 2003–2025 CSVs, parse, load into Parquet/DuckDB)
-- [ ] 01-03: Team name normalization table (build canonical mapping across ESPN, Kaggle, Sports-Reference, cbbdata; validate with known alias conflicts)
-- [ ] 01-04: Selection Sunday cutoff enforcement (date-gate all stat queries per season; verify with 2025 data)
-- [ ] 01-05: First Four game identification and tagging (flag play-in games correctly across all source formats)
+- [ ] 01-01-PLAN.md — Project scaffolding, dependencies, Kaggle dataset download, cutoff dates and seasons modules
+- [ ] 01-02-PLAN.md — DuckDB ingestion pipeline: tournament games (with First Four tagging), regular season, and seeds to Parquet
+- [ ] 01-03-PLAN.md — Team name normalization table with alias seed CSV, plus end-to-end data pipeline verification
 
 ---
 
@@ -288,7 +286,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Historical Data Pipeline | 0/5 | Not started | - |
+| 1. Historical Data Pipeline | 0/3 | Planning complete | - |
 | 2. Current Season and Bracket Data | 0/4 | Not started | - |
 | 3. Baseline Model and Temporal Validation | 0/5 | Not started | - |
 | 4. Bracket Simulator | 0/6 | Not started | - |
