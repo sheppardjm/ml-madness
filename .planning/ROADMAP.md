@@ -1,0 +1,300 @@
+# Roadmap: March Madness 2026 Bracket Predictor
+
+## Overview
+
+This project builds a Python-first ML pipeline that ingests 20+ years of NCAA tournament data, engineers efficiency-based features, trains a stacking ensemble, simulates 10,000 bracket outcomes via Monte Carlo, and surfaces results through an interactive Streamlit bracket UI. The five architectural layers — data pipeline, feature store, model layer, bracket simulator, and web UI — are built in strict dependency order, with backtesting and ensemble model selection woven in after a validated baseline exists. The deliverable is a working bracket predictor ready before Selection Sunday 2026 (mid-March).
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 1: Historical Data Pipeline** - Ingest, clean, and normalize 20+ years of tournament data from Kaggle and resolve team name conflicts across all sources
+- [ ] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
+- [ ] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
+- [ ] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
+- [ ] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
+- [ ] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
+- [ ] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
+- [ ] **Phase 8: Feature Store** - Formalize the feature computation layer with a tested API, VIF analysis, and verified cutoff-date enforcement for historical replay
+- [ ] **Phase 9: Bracket Visualization UI** - Streamlit app displaying the full 68-team bracket as programmatic SVG with predicted winners and per-game win probabilities
+- [ ] **Phase 10: Interactive Override UI** - Add manual pick overrides to the bracket UI with downstream cascade recalculation and championship score display
+
+## Phase Details
+
+### Phase 1: Historical Data Pipeline
+
+**Goal**: Normalized game records covering 2003–2025 seasons are stored in DuckDB/Parquet with verified cutoff dates and a team name normalization table that resolves conflicts across all four data sources.
+
+**Depends on**: Nothing (first phase)
+
+**Requirements**: DATA-01, DATA-03
+
+**Success Criteria** (what must be TRUE):
+  1. Running the ingestion script produces Parquet files covering 2003–2025 tournament games with no duplicate game records
+  2. Every team that appeared in the 2003–2025 tournaments has a canonical name entry in the normalization table, with aliases mapped from ESPN, Kaggle, Sports-Reference, and cbbdata
+  3. Loading any team's stats for a given season returns only data dated on or before that year's Selection Sunday (cutoff enforcement verified)
+  4. First Four play-in games are correctly distinguished from Round of 64 games in the stored records
+
+**Plans**: TBD
+
+Plans:
+- [ ] 01-01: Project environment setup (uv, Python 3.12, pyproject.toml, DuckDB/SQLite schema, directory structure)
+- [ ] 01-02: Kaggle March Machine Learning Mania ingestion (download 2003–2025 CSVs, parse, load into Parquet/DuckDB)
+- [ ] 01-03: Team name normalization table (build canonical mapping across ESPN, Kaggle, Sports-Reference, cbbdata; validate with known alias conflicts)
+- [ ] 01-04: Selection Sunday cutoff enforcement (date-gate all stat queries per season; verify with 2025 data)
+- [ ] 01-05: First Four game identification and tagging (flag play-in games correctly across all source formats)
+
+---
+
+### Phase 2: Current Season and Bracket Data
+
+**Goal**: 2025-26 season stats are available in the database via CBBpy and cbbdata, and an auto-fetch pipeline is ready to pull the 68-team bracket from ESPN on Selection Sunday with a tested manual CSV fallback.
+
+**Depends on**: Phase 1 (team name normalization table must exist before current data is merged)
+
+**Requirements**: DATA-02, DATA-04
+
+**Success Criteria** (what must be TRUE):
+  1. Running the current-season ingestion script populates per-team adjusted efficiency metrics (adjOE, adjDE, barthag) for all 2025-26 Division I teams, normalized against the Phase 1 name table
+  2. The bracket auto-fetch script returns a structured 68-team seedings object from the ESPN unofficial API without manual intervention
+  3. When the ESPN API is unavailable, loading a manually prepared bracket CSV produces the same 68-team seedings object with no code changes
+  4. All 68 bracket teams have corresponding 2025-26 season stats in the database before simulation can run
+
+**Plans**: TBD
+
+Plans:
+- [ ] 02-01: CBBpy integration (pull 2025-26 season game logs, team stats; normalize names against Phase 1 table)
+- [ ] 02-02: cbbdata API integration (fetch adjusted efficiency metrics for all 2025-26 teams; verify free key access)
+- [ ] 02-03: ESPN bracket auto-fetch pipeline (call unofficial API, parse 68-team bracket JSON, extract seedings and regions)
+- [ ] 02-04: Manual CSV fallback (define CSV schema, write loader, verify it produces identical seedings object as auto-fetch)
+
+---
+
+### Phase 3: Baseline Model and Temporal Validation
+
+**Goal**: A trained logistic regression baseline model exists on disk, walk-forward temporal validation infrastructure is operational, and the first multi-year backtest (2022–2025) establishes baseline Brier score and log-loss benchmarks.
+
+**Depends on**: Phase 1 (historical game records), Phase 2 (current season stats), Phase 8 (feature vectors — see note)
+
+**Requirements**: MODL-01, MODL-03, MODL-04
+
+**Note**: Phase 8 (Feature Store) provides the `compute_features()` API. Phase 3 can proceed with an inline feature computation function that Phase 8 later formalizes, but the temporal CV harness built here is the canonical infrastructure for all subsequent model evaluation.
+
+**Success Criteria** (what must be TRUE):
+  1. A trained logistic regression model file exists at `models/logistic_baseline.joblib` and can be loaded to predict win probabilities for arbitrary team-pair inputs
+  2. Walk-forward temporal validation runs without data leakage: training on years T-N through T-1 and evaluating on year T produces distinct, non-overlapping splits for 2022, 2023, 2024, and 2025
+  3. Brier score and log-loss are computed and printed for each holdout year — a chalk-only model would score ~0.23 Brier; the baseline must score below that
+  4. The model produces calibrated probabilities (neither team is assigned 90%+ win probability in a matchup between top-10 ranked opponents)
+
+**Plans**: TBD
+
+Plans:
+- [ ] 03-01: Feature engineering (inline compute_features: adjOE diff, adjDE diff, barthag diff, seed diff, SOS diff, tempo; normalized per matchup pair)
+- [ ] 03-02: Walk-forward temporal CV harness (TimeSeriesSplit by tournament year; enforce no future years in training fold)
+- [ ] 03-03: Logistic regression training (scikit-learn LogisticRegression with class weights; save with joblib; hyperparameter sweep via optuna)
+- [ ] 03-04: Brier score and log-loss evaluation pipeline (compute per holdout year; compare vs. chalk baseline; print comparison table)
+- [ ] 03-05: Calibration check (plot predicted vs. actual win rates across probability bins; flag if calibration curve deviates significantly)
+
+---
+
+### Phase 4: Bracket Simulator
+
+**Goal**: A `simulate_bracket()` function accepts team seedings, a predict function, and an optional override map, then fills all 67 tournament games using both deterministic (highest-probability winner) and Monte Carlo (10,000+ Bernoulli draws) modes, producing bracket JSON with full slot addressing.
+
+**Depends on**: Phase 3 (trained model providing a predict function)
+
+**Requirements**: SIML-01, SIML-02, SIML-03, SIML-04
+
+**Success Criteria** (what must be TRUE):
+  1. `simulate_bracket(seedings, predict_fn, mode="deterministic")` returns a bracket JSON object where every slot from Round of 64 through the championship is filled with exactly one team and a recorded win probability
+  2. `simulate_bracket(seedings, predict_fn, mode="monte_carlo", n_runs=10000)` returns per-team advancement probabilities for each round and a champion confidence percentage
+  3. The Monte Carlo distribution produces plausible upset rates: at least 5% of 10,000 simulations show a 10-or-higher seed reaching the Sweet 16 (calibration sanity check)
+  4. The champion prediction includes a predicted championship game score (point total and margin)
+  5. Passing an override map `{slot_id: team_id}` re-runs simulation from that slot forward, producing different downstream results
+
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01: Bracket slot schema design (define slot addressing: R1_W01 through championship; parent-child slot relationships; First Four slot handling)
+- [ ] 04-02: Deterministic bracket fill (walk slot tree from First Four to championship; record winner and probability at each slot)
+- [ ] 04-03: Monte Carlo simulation (Bernoulli draw per game in each run; aggregate per-team advancement counts; compute confidence percentages)
+- [ ] 04-04: Championship score prediction (secondary linear model or rule-based estimator; output predicted total points and margin)
+- [ ] 04-05: Override map injection (accept override dict; re-run simulation from overridden slots; verify downstream slots update correctly)
+- [ ] 04-06: Monte Carlo calibration validation (assert upset rate sanity check; log warning if fewer than 5% of runs include a 10+ seed in Sweet 16)
+
+---
+
+### Phase 5: Backtesting Harness
+
+**Goal**: A `backtest()` function replays the feature-to-simulator pipeline against 2022, 2023, 2024, and 2025 tournament snapshots with strict data cutoff enforcement, producing a per-year accuracy and calibration table for the baseline model.
+
+**Depends on**: Phase 3 (baseline model + temporal CV), Phase 4 (bracket simulator)
+
+**Requirements**: BACK-01, BACK-02
+
+**Success Criteria** (what must be TRUE):
+  1. Running `backtest(year_range=[2022,2023,2024,2025], model="baseline")` produces a table showing per-round accuracy, ESPN bracket score equivalent, Brier score, log-loss, and upset-detection rate for each year without manual data preparation
+  2. The 2025 backtest result uses only data available as of that year's Selection Sunday — post-tournament game records do not appear in the 2025 training set
+  3. The multi-year backtest covers distinct variance profiles: 2022 (Saint Peter's Elite Eight), 2023 (FAU Final Four), 2024 (NC State run), and 2025 (all-chalk Final Four) are all represented with individual-year scores
+  4. Backtest results are written to `backtest/results.json` and can be reproduced identically by re-running the harness
+
+**Plans**: TBD
+
+Plans:
+- [ ] 05-01: Historical snapshot isolation (per-year data cutoff enforcement; verify 2025 stats do not bleed into 2024 test fold)
+- [ ] 05-02: Backtest orchestration loop (iterate years; load snapshot stats; run feature computation; run model; run simulator; score against known results)
+- [ ] 05-03: Scoring metrics (per-round accuracy, ESPN-style bracket score, Brier score per game, log-loss, upset detection rate)
+- [ ] 05-04: Multi-year results table (aggregate into comparison table; write to backtest/results.json; print summary)
+- [ ] 05-05: BACK-01 validation (specifically score 2025 tournament and confirm model output against in-repo 2025 results data)
+
+---
+
+### Phase 6: Ensemble Models
+
+**Goal**: XGBoost and LightGBM base models are trained with temporal CV, stacked with logistic regression as the meta-learner, and the ensemble output is calibrated — producing win probabilities that outperform the logistic regression baseline on multi-year Brier score.
+
+**Depends on**: Phase 5 (backtest results establish what the baseline achieves; ensemble composition is guided by evidence)
+
+**Requirements**: MODL-02
+
+**Success Criteria** (what must be TRUE):
+  1. XGBoost and LightGBM models are trained with the same walk-forward temporal splits as the baseline, and their individual Brier scores are logged alongside the baseline for comparison
+  2. A scikit-learn StackingClassifier combines XGBoost, LightGBM, and logistic regression with logistic regression as the meta-learner, and a single `ensemble.predict_proba()` call returns calibrated win probabilities
+  3. The ensemble achieves a lower multi-year Brier score than the logistic regression baseline alone on the 2022–2025 holdout set
+  4. Calibration curves for the ensemble show predicted probabilities within 5 percentage points of actual win rates across decile bins
+
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: XGBoost model training (optuna hyperparameter search; temporal CV; log Brier score and log-loss per year)
+- [ ] 06-02: LightGBM model training (optuna hyperparameter search; temporal CV; log Brier score and log-loss per year)
+- [ ] 06-03: Stacking ensemble assembly (scikit-learn StackingClassifier; logistic regression meta-learner; temporal-aware cross_val_predict for training meta-learner)
+- [ ] 06-04: Probability calibration (Platt scaling or isotonic regression on held-out calibration set; plot calibration curves before and after)
+- [ ] 06-05: Ensemble backtest run (re-run Phase 5 harness with ensemble predict function; update backtest/results.json with ensemble row)
+
+---
+
+### Phase 7: Model Comparison Dashboard
+
+**Goal**: A side-by-side comparison table shows baseline vs. ensemble performance across all backtest years, per round, and on upset detection rate — making it clear which model to use for the 2026 bracket.
+
+**Depends on**: Phase 5 (baseline backtest results), Phase 6 (ensemble backtest results)
+
+**Requirements**: BACK-03
+
+**Success Criteria** (what must be TRUE):
+  1. Running a single command prints (or displays in Streamlit) a formatted table comparing logistic regression baseline vs. XGBoost vs. LightGBM vs. ensemble across the 2022–2025 holdout years with per-round accuracy, overall Brier score, and upset detection rate
+  2. The table includes a recommended model row identifying the best performer by multi-year Brier score
+  3. A bar chart or heat map visualizes per-round accuracy differences between models, making it easy to see where the ensemble improves on the baseline
+
+**Plans**: TBD
+
+Plans:
+- [ ] 07-01: Comparison table formatter (load backtest/results.json; pivot into model-vs-year matrix; compute aggregate stats; print as formatted table)
+- [ ] 07-02: Visualization (Plotly bar chart of per-round accuracy; heatmap of Brier score by model and year)
+- [ ] 07-03: Model recommendation logic (select best model by multi-year average Brier score; write selection to models/selected.json)
+
+---
+
+### Phase 8: Feature Store
+
+**Goal**: A formalized `compute_features(team_a, team_b, season)` function with full test coverage, VIF analysis confirming no collinear features, and verified cutoff-date enforcement for historical replay becomes the single source of feature vectors for all models and backtests.
+
+**Depends on**: Phase 1 (normalized data), Phase 2 (current season stats)
+
+**Note**: Phase 8 is ordered after Phase 7 because feature computation begins informally in Phase 3, evolves through Phases 5-6, and is formalized here after the feature set is stable. Phases 3-7 can use the inline feature function; Phase 8 replaces it with the tested, validated API. In execution, Phase 8 work should happen alongside Phase 3 in practice — but the formal acceptance criteria depend on the full feature set having been exercised through backtesting.
+
+**Requirements**: (Supports MODL-01, MODL-02, MODL-03, MODL-04 — feature engineering is a prerequisite for all modeling requirements; this phase formally closes that prerequisite)
+
+**Note on requirements mapping**: The feature store is the implementation substrate for the modeling requirements. Since MODL-01, MODL-02, MODL-03, MODL-04 are already mapped to Phases 3 and 6, Phase 8 formalizes the shared infrastructure. No v1 requirement is orphaned — this phase captures the formalization work that those requirements depend on.
+
+**Success Criteria** (what must be TRUE):
+  1. Calling `compute_features(team_a="Duke", team_b="Michigan", season=2025)` returns a named feature vector with adjOE differential, adjDE differential, barthag differential, seed differential, tempo differential, and SOS differential — with unit tests covering known historical matchups
+  2. VIF analysis on the feature matrix from 2003–2025 historical matchups shows no feature with VIF > 10 (no severe multicollinearity)
+  3. Calling `compute_features(..., as_of_date=selection_sunday_2025)` returns only stats available before that date — confirmed by asserting no post-Selection-Sunday games are included
+  4. Swapping team A and team B inverts the differential signs and produces P(B beats A) = 1 - P(A beats B) when passed through any trained model (perspective symmetry test)
+
+**Plans**: TBD
+
+Plans:
+- [ ] 08-01: Feature function API definition (type signatures, docstring, return schema; register as the canonical interface for all models)
+- [ ] 08-02: Efficiency differential computation (adjOE, adjDE, barthag, tempo from cbbdata; seed differential from bracket data)
+- [ ] 08-03: Strength of schedule and recent form (SOS from CBBpy game logs; last-N-games win rate as recency weight; season-bounded only)
+- [ ] 08-04: VIF analysis (compute VIF on full feature matrix; drop or combine any feature above threshold; document final feature set)
+- [ ] 08-05: Unit tests and perspective symmetry (pytest suite; known historical matchup fixtures; symmetry assertion)
+
+---
+
+### Phase 9: Bracket Visualization UI
+
+**Goal**: A Streamlit application displays the full 68-team bracket as a programmatic SVG, showing predicted winners in each slot and per-game win probabilities, using the selected ensemble model's outputs.
+
+**Depends on**: Phase 4 (bracket JSON contract), Phase 7 (model selection), Phase 8 (feature store API)
+
+**Requirements**: WEBU-01, WEBU-02
+
+**Success Criteria** (what must be TRUE):
+  1. Launching `streamlit run app.py` renders a complete 68-team bracket in the browser, including First Four play-in games, with all 67 game slots filled with the predicted winning team
+  2. Each game slot displays the win probability for the predicted winner alongside the two competing team names
+  3. The bracket layout correctly shows all four regions (East, West, South, Midwest) with rounds progressing from left to right toward the championship
+  4. A sidebar or panel shows round-by-round advancement probabilities for all 68 teams as a sortable table
+
+**Plans**: TBD
+
+Plans:
+- [ ] 09-01: Streamlit app scaffolding (app.py entry point; session state initialization; model loading from models/selected.json; bracket data loading)
+- [ ] 09-02: SVG bracket layout algorithm (coordinate generation for 68-team single-elimination bracket; slot positioning for all four regions and Final Four)
+- [ ] 09-03: SVG bracket rendering (programmatic SVG in st.components.v1.html(); team name and win probability labels per slot; champion highlight)
+- [ ] 09-04: Round-by-round advancement table (Plotly table or st.dataframe showing P(team reaches round) for all 68 teams across all 6 rounds)
+- [ ] 09-05: Champion panel (display predicted champion, confidence percentage, and predicted championship game score prominently)
+
+---
+
+### Phase 10: Interactive Override UI
+
+**Goal**: Users can click a game slot in the bracket to override the predicted winner, and all downstream slots immediately recalculate using the Monte Carlo simulator with the override map applied.
+
+**Depends on**: Phase 9 (bracket SVG UI), Phase 4 (override map injection in simulator)
+
+**Requirements**: WEBU-03
+
+**Success Criteria** (what must be TRUE):
+  1. Clicking a team name in any bracket slot overrides the predicted winner for that game, and all subsequent rounds involving that slot immediately show updated predicted winners and win probabilities
+  2. A "Reset to model picks" button restores the full bracket to the ensemble model's predictions in a single click
+  3. The override state persists within a Streamlit session — refreshing the page or switching tabs does not clear manually entered overrides
+  4. After an override, champion confidence percentage and advancement probabilities update to reflect the manual pick propagated through all downstream simulation
+
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: Override state management (st.session_state override map; slot click events via SVG interaction or st.button workaround; persist across rerenders)
+- [ ] 10-02: Cascade recalculation trigger (on override change, call simulate_bracket() with updated override map; update bracket JSON in session state)
+- [ ] 10-03: UI feedback for overrides (visually distinguish overridden slots from model-predicted slots; show original model prediction alongside override)
+- [ ] 10-04: Reset functionality (clear override map from session state; re-run simulation with empty override; restore all downstream predictions)
+- [ ] 10-05: End-to-end override integration test (manually override a Round of 64 result; verify all 6 downstream rounds update correctly for the affected region)
+
+---
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+
+Note: Phase 8 (Feature Store formalization) should be done in practice alongside Phase 3 but is formally gated on stable feature set after Phase 6. Phases 9 and 10 can begin once Phase 4's bracket JSON contract is stable.
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Historical Data Pipeline | 0/5 | Not started | - |
+| 2. Current Season and Bracket Data | 0/4 | Not started | - |
+| 3. Baseline Model and Temporal Validation | 0/5 | Not started | - |
+| 4. Bracket Simulator | 0/6 | Not started | - |
+| 5. Backtesting Harness | 0/5 | Not started | - |
+| 6. Ensemble Models | 0/5 | Not started | - |
+| 7. Model Comparison Dashboard | 0/3 | Not started | - |
+| 8. Feature Store | 0/5 | Not started | - |
+| 9. Bracket Visualization UI | 0/5 | Not started | - |
+| 10. Interactive Override UI | 0/5 | Not started | - |

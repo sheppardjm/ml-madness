@@ -70,30 +70,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| DATA-04 | — | Pending |
-| MODL-01 | — | Pending |
-| MODL-02 | — | Pending |
-| MODL-03 | — | Pending |
-| MODL-04 | — | Pending |
-| SIML-01 | — | Pending |
-| SIML-02 | — | Pending |
-| SIML-03 | — | Pending |
-| SIML-04 | — | Pending |
-| BACK-01 | — | Pending |
-| BACK-02 | — | Pending |
-| BACK-03 | — | Pending |
-| WEBU-01 | — | Pending |
-| WEBU-02 | — | Pending |
-| WEBU-03 | — | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-03 | Phase 1 | Pending |
+| DATA-02 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Pending |
+| MODL-01 | Phase 3 | Pending |
+| MODL-03 | Phase 3 | Pending |
+| MODL-04 | Phase 3 | Pending |
+| SIML-01 | Phase 4 | Pending |
+| SIML-02 | Phase 4 | Pending |
+| SIML-03 | Phase 4 | Pending |
+| SIML-04 | Phase 4 | Pending |
+| BACK-01 | Phase 5 | Pending |
+| BACK-02 | Phase 5 | Pending |
+| MODL-02 | Phase 6 | Pending |
+| BACK-03 | Phase 7 | Pending |
+| WEBU-01 | Phase 9 | Pending |
+| WEBU-02 | Phase 9 | Pending |
+| WEBU-03 | Phase 10 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after initial definition*
+*Last updated: 2026-03-02 after roadmap creation — all 18 requirements mapped*
