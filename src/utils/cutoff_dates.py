@@ -40,6 +40,7 @@ SELECTION_SUNDAY_DATES: dict[int, str] = {
     2023: "2023-03-12",
     2024: "2024-03-17",
     2025: "2025-03-16",
+    2026: "2026-03-15",
 }
 
 
@@ -63,6 +64,6 @@ def get_cutoff(season: int) -> str:
             )
         raise ValueError(
             f"No Selection Sunday date for season {season}. "
-            f"Valid seasons: 2003-2019, 2021-2025 (2020 cancelled)."
+            f"Valid seasons: 2003-2019, 2021-2026 (2020 cancelled)."
         )
     return SELECTION_SUNDAY_DATES[season]
