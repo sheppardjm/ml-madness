@@ -62,13 +62,11 @@ Plans:
   3. When the ESPN API is unavailable, loading a manually prepared bracket CSV produces the same 68-team seedings object with no code changes
   4. All 68 bracket teams have corresponding 2025-26 season stats in the database before simulation can run
 
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: CBBpy integration (pull 2025-26 season game logs, team stats; normalize names against Phase 1 table)
-- [ ] 02-02: cbbdata API integration (fetch adjusted efficiency metrics for all 2025-26 teams; verify free key access)
-- [ ] 02-03: ESPN bracket auto-fetch pipeline (call unofficial API, parse 68-team bracket JSON, extract seedings and regions)
-- [ ] 02-04: Manual CSV fallback (define CSV schema, write loader, verify it produces identical seedings object as auto-fetch)
+- [ ] 02-01-PLAN.md — cbbdata API integration: auth client, fetch 2025-26 torvik ratings, populate espn_slug + cbbdata_name in team normalization table, write current_season_stats.parquet, add 2026 Selection Sunday date
+- [ ] 02-02-PLAN.md — ESPN bracket auto-fetch + CSV fallback: scoreboard API parser, manual CSV loader, unified load_bracket() interface, bracket-to-stats coverage verification
 
 ---
 
@@ -287,7 +285,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Historical Data Pipeline | 3/3 | ✓ Complete | 2026-03-02 |
-| 2. Current Season and Bracket Data | 0/4 | Not started | - |
+| 2. Current Season and Bracket Data | 0/2 | Planned | - |
 | 3. Baseline Model and Temporal Validation | 0/5 | Not started | - |
 | 4. Bracket Simulator | 0/6 | Not started | - |
 | 5. Backtesting Harness | 0/5 | Not started | - |
