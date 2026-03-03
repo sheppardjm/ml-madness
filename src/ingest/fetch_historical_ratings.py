@@ -27,6 +27,28 @@ PROCESSED_DIR = pathlib.Path("data/processed")
 OUTPUT_PARQUET = PROCESSED_DIR / "historical_torvik_ratings.parquet"
 NORM_PARQUET = PROCESSED_DIR / "team_normalization.parquet"
 
+# Hard-coded overrides for cbbdata API team names that fuzzy-match incorrectly.
+# These are cases where the cbbdata name does not match the canonical_name or
+# cbbdata_name in team_normalization.parquet AND fuzzy matching picks the wrong team.
+# Format: {cbbdata_api_name: correct_canonical_name_in_normalization}
+CBBDATA_NAME_OVERRIDES: dict[str, str] = {
+    # NC State: cbbdata sends "North Carolina St." in some seasons — fuzzy incorrectly
+    # picks "North Carolina". The cbbdata_name in normalization is "N.C. State" which
+    # handles most seasons; this override handles the alternate API name.
+    "North Carolina St.": "NC State",
+    # NC A&T: cbbdata sends "North Carolina A&T" — fuzzy incorrectly picks "North Carolina"
+    "North Carolina A&T": "NC A&T",
+    # College of Charleston: cbbdata sends "Charleston" in some seasons.
+    # "College of Charleston" direct-matches via cbbdata_name; "Charleston" alone
+    # would fuzzy to "Charleston So" (wrong school).
+    "Charleston": "Col Charleston",
+    # Saint Francis: cbbdata sends "Saint Francis" in recent seasons and "St. Francis PA"
+    # in older seasons — both should map to St Francis PA (1384).
+    # "Saint Francis" is now the cbbdata_name for 1384 (direct match for recent seasons).
+    # "St. Francis PA" fuzzy matches at 77 (below threshold), so we override it here.
+    "St. Francis PA": "St Francis PA",
+}
+
 # Columns to include in the output
 OUTPUT_COLS = [
     "kaggle_team_id",
@@ -70,7 +92,18 @@ def _match_team(
     has_fuzzy: bool,
     fuzzy_threshold: int = 85,
 ) -> tuple[object | None, bool]:
-    """Multi-pass team name matching. Returns (norm_row_or_None, was_fuzzy_match)."""
+    """Multi-pass team name matching. Returns (norm_row_or_None, was_fuzzy_match).
+
+    Pre-pass: check hard-coded overrides for known bad fuzzy matches (teams where
+    the cbbdata API name would otherwise be routed to the wrong canonical team).
+    """
+    # Pre-pass: hard-coded overrides for known ambiguous/incorrect fuzzy matches
+    override_canonical = CBBDATA_NAME_OVERRIDES.get(team_name)
+    if override_canonical is not None:
+        norm_row = canonical_name_to_row.get(override_canonical)
+        if norm_row is not None:
+            return norm_row, False
+
     # Pass 1: cbbdata_name
     norm_row = cbd_name_to_row.get(team_name)
     if norm_row is not None:

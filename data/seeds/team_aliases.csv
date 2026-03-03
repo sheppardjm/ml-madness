@@ -82,7 +82,8 @@ kaggle_team_id,canonical_name,kaggle_name,espn_name,sr_slug,cbbdata_name
 1245,Kent,Kent,,kent-st,Kent St.
 1271,MD E Shore,MD E Shore,,maryland-eastern-shore,Maryland Eastern Shore
 1282,Missouri KC,Missouri KC,,umkc,UMKC
-1299,NC Central,NC Central,,nc-central,North Carolina Central
+1299,NC A&T,NC A&T,,nc-at,North Carolina A&T
+1300,NC Central,NC Central,,nc-central,North Carolina Central
 1301,NC State,NC State,,nc-state,N.C. State
 1367,SC Upstate,SC Upstate,,usc-upstate,USC Upstate
 1386,St Joseph's PA,St Joseph's PA,,saint-josephs,Saint Joseph's
@@ -94,3 +95,5 @@ kaggle_team_id,canonical_name,kaggle_name,espn_name,sr_slug,cbbdata_name
 1441,W Carolina,W Carolina,,western-carolina,Western Carolina
 1474,Queens NC,Queens NC,,queens,Queens
 1477,East Texas A&M,East Texas A&M,,texas-am-commerce,Texas A&M Commerce
+1158,Col Charleston,Col Charleston,,college-of-charleston,College of Charleston
+1384,St Francis PA,St Francis PA,,saint-francis-pa,Saint Francis
