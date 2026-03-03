@@ -96,7 +96,11 @@ def get_cbbdata_token(
     return api_key
 
 
-def fetch_torvik_ratings(api_key: str, year: int = 2026) -> pd.DataFrame:
+def fetch_torvik_ratings(
+    api_key: str,
+    year: int = 2026,
+    archive_year_override: int | None = None,
+) -> pd.DataFrame:
     """Fetch Torvik adjusted efficiency ratings from the cbbdata API.
 
     Attempts the year-end ratings endpoint first. If that endpoint returns no
@@ -112,6 +116,11 @@ def fetch_torvik_ratings(api_key: str, year: int = 2026) -> pd.DataFrame:
     Args:
         api_key: API key from get_cbbdata_token().
         year: Season year (e.g., 2026 for the 2025-26 season). Default: 2026.
+        archive_year_override: When provided, use this value as the archive
+            fallback year instead of ``year - 1``. This is useful for historical
+            seasons (2003–2024) where the archive should be queried with the
+            season year itself, not the preceding year. Default: None (uses
+            ``year - 1`` as the archive year, correct for the current season).
 
     Returns:
         DataFrame with columns: team, conf, barthag, adj_o, adj_d, adj_t,
@@ -143,7 +152,12 @@ def fetch_torvik_ratings(api_key: str, year: int = 2026) -> pd.DataFrame:
     # --- Fallback: daily archive for most recent pre-Selection-Sunday snapshot ---
     # The archive tracks day-by-day ratings during the season.
     # For a given year, find the latest date at or before Selection Sunday.
-    fallback_year = year - 1  # E.g., 2025 for 2025-26 season missing
+    # For historical seasons, archive_year_override allows using the season year
+    # itself (not year-1) since the tournament-end archive exists for that year.
+    if archive_year_override is not None:
+        fallback_year = archive_year_override
+    else:
+        fallback_year = year - 1  # E.g., 2025 for 2025-26 season missing
     print(
         f"  Year-end ratings unavailable for year={year} (empty or no barthag). "
         f"Falling back to archive for year={fallback_year}..."
