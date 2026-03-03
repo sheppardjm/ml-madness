@@ -6,7 +6,7 @@ kaggle_team_id,canonical_name,kaggle_name,espn_name,sr_slug,cbbdata_name
 1259,Loyola MD,Loyola MD,Loyola (MD),loyola-md,Loyola (Md.)
 1385,St John's,St John's,St. John's (NY),st-johns,St. John's
 1394,Texas A&M Corpus Christi,TAM C. Christi,Texas A&M-Corpus Christi,texas-am-corpus-christi,Texas A&M-CC
-1114,Arkansas Little Rock,Ark Little Rock,Little Rock,arkansas-little-rock,Arkansas Little Rock
+1114,Arkansas Little Rock,Ark Little Rock,Little Rock,arkansas-little-rock,Little Rock
 1115,Arkansas Pine Bluff,Ark Pine Bluff,Arkansas-Pine Bluff,arkansas-pine-bluff,Arkansas Pine Bluff
 1141,Central Michigan,C Michigan,Central Michigan,central-michigan,Central Michigan
 1167,Cal State Bakersfield,CS Bakersfield,Cal State Bakersfield,cal-st-bakersfield,CS Bakersfield
@@ -16,7 +16,7 @@ kaggle_team_id,canonical_name,kaggle_name,espn_name,sr_slug,cbbdata_name
 1186,Eastern Washington,E Washington,Eastern Washington,eastern-washington,Eastern Washington
 1192,Fairleigh Dickinson,F Dickinson,Fairleigh Dickinson,fairleigh-dickinson,Fairleigh Dickinson
 1194,Florida Atlantic,FL Atlantic,Florida Atlantic,florida-atlantic,Florida Atlantic
-1195,FGCU,FGCU,Florida Gulf Coast,fgcu,FGCU
+1195,FGCU,FGCU,Florida Gulf Coast,fgcu,Florida Gulf Coast
 1203,George Washington,G Washington,George Washington,george-washington,George Washington
 1205,Gardner-Webb,Gardner Webb,Gardner-Webb,gardner-webb,Gardner-Webb
 1227,Illinois Chicago,IL Chicago,Illinois-Chicago,illinois-chicago,Illinois-Chicago
@@ -57,9 +57,40 @@ kaggle_team_id,canonical_name,kaggle_name,espn_name,sr_slug,cbbdata_name
 1453,Green Bay,WI Green Bay,Green Bay,green-bay,Green Bay
 1454,Milwaukee,WI Milwaukee,Milwaukee,milwaukee,Milwaukee
 1462,Xavier,Xavier,Xavier,xavier,Xavier
-1188,SIUE,SIUE,SIU Edwardsville,siue,SIUE
+1188,SIUE,SIUE,SIU Edwardsville,siue,SIU Edwardsville
 1183,E Illinois,E Illinois,Eastern Illinois,eastern-illinois,Eastern Illinois
 1185,E Michigan,E Michigan,Eastern Michigan,eastern-michigan,Eastern Michigan
 1296,N Illinois,N Illinois,Northern Illinois,northern-illinois,Northern Illinois
 1322,Northwestern LA,Northwestern LA,Northwestern St.,northwestern-state,Northwestern St.
 1442,W Illinois,W Illinois,Western Illinois,western-illinois,Western Illinois
+1101,Abilene Chr,Abilene Chr,,abilene-christian,Abilene Christian
+1110,American Univ,American Univ,,american-university,American
+1131,Boston Univ,Boston Univ,,boston-university,Boston University
+1148,Central Conn,Central Conn,,central-connecticut,Central Connecticut
+1149,Charleston So,Charleston So,,charleston-southern,Charleston Southern
+1154,Citadel,Citadel,,citadel,The Citadel
+1157,Coastal Car,Coastal Car,,coastal-carolina,Coastal Carolina
+1170,CS Sacramento,CS Sacramento,,sacramento-st,Sacramento St.
+1178,Detroit,Detroit,,detroit-mercy,Detroit Mercy
+1190,ETSU,ETSU,,east-tennessee-st,East Tennessee St.
+1198,Florida Intl,Florida Intl,,fiu,FIU
+1204,Ga Southern,Ga Southern,,georgia-southern,Georgia Southern
+1223,Houston Chr,Houston Chr,,houston-christian,Houston Christian
+1236,PFW,PFW,,purdue-fort-wayne,Purdue Fort Wayne
+1237,IUPUI,IUPUI,,iupui,IU Indy
+1244,Kennesaw,Kennesaw,,kennesaw-st,Kennesaw St.
+1245,Kent,Kent,,kent-st,Kent St.
+1271,MD E Shore,MD E Shore,,maryland-eastern-shore,Maryland Eastern Shore
+1282,Missouri KC,Missouri KC,,umkc,UMKC
+1299,NC Central,NC Central,,nc-central,North Carolina Central
+1301,NC State,NC State,,nc-state,N.C. State
+1367,SC Upstate,SC Upstate,,usc-upstate,USC Upstate
+1386,St Joseph's PA,St Joseph's PA,,saint-josephs,Saint Joseph's
+1387,St Louis,St Louis,,saint-louis,Saint Louis
+1388,St Mary's CA,St Mary's CA,,saint-marys,Saint Mary's
+1404,TN Martin,TN Martin,,tennessee-martin,Tennessee Martin
+1410,UTRGV,UTRGV,,ut-rio-grande-valley,UT Rio Grande Valley
+1419,ULM,ULM,,louisiana-monroe,Louisiana Monroe
+1441,W Carolina,W Carolina,,western-carolina,Western Carolina
+1474,Queens NC,Queens NC,,queens,Queens
+1477,East Texas A&M,East Texas A&M,,texas-am-commerce,Texas A&M Commerce

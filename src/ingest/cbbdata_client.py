@@ -82,16 +82,32 @@ def get_cbbdata_token(
     )
     response.raise_for_status()
 
-    # Response is a JSON list; API key is the first element
-    api_key = response.json()[0]
+    # Response is a JSON dict with "api_key" key (current API format).
+    # Earlier documentation described a list format; handle both for robustness.
+    data = response.json()
+    if isinstance(data, dict):
+        api_key = data.get("api_key") or data.get("key") or data.get("token")
+        if not api_key:
+            raise ValueError(f"Unexpected login response format: {list(data.keys())}")
+    elif isinstance(data, list):
+        api_key = data[0]
+    else:
+        raise ValueError(f"Unexpected login response type: {type(data)}")
     return api_key
 
 
 def fetch_torvik_ratings(api_key: str, year: int = 2026) -> pd.DataFrame:
     """Fetch Torvik adjusted efficiency ratings from the cbbdata API.
 
-    Returns per-team ratings including barthag (power rating), adjusted
-    offensive/defensive/tempo metrics, and wins above bubble.
+    Attempts the year-end ratings endpoint first. If that endpoint returns no
+    valid data (e.g., the current season is not yet indexed), falls back to
+    the daily ratings archive for the most recent available pre-Selection-Sunday
+    snapshot of the preceding season.
+
+    Note: As of 2026-03, cbbdata's ratings endpoint only has complete year-end
+    data through year=2024. Year=2025 returns rows without barthag populated.
+    Year=2026 (2025-26 season) returns empty. The archive endpoint is used as
+    a fallback to get the best available data.
 
     Args:
         api_key: API key from get_cbbdata_token().
@@ -99,22 +115,80 @@ def fetch_torvik_ratings(api_key: str, year: int = 2026) -> pd.DataFrame:
 
     Returns:
         DataFrame with columns: team, conf, barthag, adj_o, adj_d, adj_t,
-        wab, year, and various rank columns.
+        wab, year, and various rank columns. When using archive fallback,
+        also includes a 'source_date' column indicating the snapshot date.
 
     Raises:
         requests.HTTPError: If the API request fails.
+        ValueError: If no data can be found for the given year or any fallback.
     """
+    import datetime as _dt  # noqa: PLC0415
+
     session = _make_session()
+
+    # --- Primary: try year-end ratings endpoint ---
     response = session.get(
         f"{CBD_BASE_URL}/torvik/ratings",
         params={"key": api_key, "year": year},
-        timeout=60,  # Larger dataset — allow more time
+        timeout=60,
     )
     response.raise_for_status()
-
-    # Response is raw Parquet bytes, NOT JSON
     df = pd.read_parquet(BytesIO(response.content))
-    return df
+
+    # Check if data has valid barthag values (not all-null)
+    if len(df) > 0 and df["barthag"].notna().any():
+        print(f"  Fetched {len(df)} teams from year-end ratings (year={year})")
+        return df
+
+    # --- Fallback: daily archive for most recent pre-Selection-Sunday snapshot ---
+    # The archive tracks day-by-day ratings during the season.
+    # For a given year, find the latest date at or before Selection Sunday.
+    fallback_year = year - 1  # E.g., 2025 for 2025-26 season missing
+    print(
+        f"  Year-end ratings unavailable for year={year} (empty or no barthag). "
+        f"Falling back to archive for year={fallback_year}..."
+    )
+
+    archive_response = session.get(
+        f"{CBD_BASE_URL}/torvik/ratings/archive",
+        params={"key": api_key, "year": fallback_year},
+        timeout=60,
+    )
+    archive_response.raise_for_status()
+    archive_df = pd.read_parquet(BytesIO(archive_response.content))
+
+    if len(archive_df) == 0:
+        raise ValueError(
+            f"No ratings data available for year={year} or archive year={fallback_year}. "
+            "cbbdata may not have current season data yet."
+        )
+
+    # Pick the latest available date (ideally at or before Selection Sunday)
+    # Selection Sunday for fallback_year
+    from src.utils.cutoff_dates import SELECTION_SUNDAY_DATES  # noqa: PLC0415
+    selection_sunday_str = SELECTION_SUNDAY_DATES.get(fallback_year)
+    if selection_sunday_str:
+        ss_date = _dt.date.fromisoformat(selection_sunday_str)
+        available_dates = sorted(archive_df["date"].unique())
+        # Find latest date at or before Selection Sunday
+        pre_ss_dates = [d for d in available_dates if d <= ss_date]
+        target_date = max(pre_ss_dates) if pre_ss_dates else max(available_dates)
+    else:
+        target_date = archive_df["date"].max()
+
+    snapshot = archive_df[archive_df["date"] == target_date].copy()
+    snapshot["source_date"] = str(target_date)
+    # Rename archive columns to match year-end ratings schema where needed
+    if "adj_tempo" in snapshot.columns and "adj_t" not in snapshot.columns:
+        snapshot = snapshot.rename(columns={"adj_tempo": "adj_t"})
+    if "wins_above_bubble" in snapshot.columns and "wab" not in snapshot.columns:
+        snapshot = snapshot.rename(columns={"wins_above_bubble": "wab"})
+
+    print(
+        f"  Using archive snapshot for {fallback_year} on {target_date}: "
+        f"{len(snapshot)} teams (NOTE: this is previous-season data, not {year})"
+    )
+    return snapshot
 
 
 def fetch_cbbdata_teams() -> pd.DataFrame:
