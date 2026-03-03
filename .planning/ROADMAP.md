@@ -86,14 +86,12 @@ Plans:
   3. Brier score and log-loss are computed and printed for each holdout year — a chalk-only model would score ~0.23 Brier; the baseline must score below that
   4. The model produces calibrated probabilities (neither team is assigned 90%+ win probability in a matchup between top-10 ranked opponents)
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Feature engineering (inline compute_features: adjOE diff, adjDE diff, barthag diff, seed diff, SOS diff, tempo; normalized per matchup pair)
-- [ ] 03-02: Walk-forward temporal CV harness (TimeSeriesSplit by tournament year; enforce no future years in training fold)
-- [ ] 03-03: Logistic regression training (scikit-learn LogisticRegression with class weights; save with joblib; hyperparameter sweep via optuna)
-- [ ] 03-04: Brier score and log-loss evaluation pipeline (compute per holdout year; compare vs. chalk baseline; print comparison table)
-- [ ] 03-05: Calibration check (plot predicted vs. actual win rates across probability bins; flag if calibration curve deviates significantly)
+- [ ] 03-01-PLAN.md — Historical Torvik ratings fetch (2003-2025 via cbbdata API) + inline compute_features() and build_matchup_dataset() for differential feature engineering
+- [ ] 03-02-PLAN.md — Walk-forward temporal CV harness (year-grouped splits for 2022-2025) + logistic regression training with Optuna hyperparameter sweep + joblib model save
+- [ ] 03-03-PLAN.md — Brier score and log-loss evaluation pipeline with chalk comparison table + calibration curve plot + overconfidence check for top-seed matchups
 
 ---
 
@@ -286,7 +284,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 |-------|----------------|--------|-----------|
 | 1. Historical Data Pipeline | 3/3 | ✓ Complete | 2026-03-02 |
 | 2. Current Season and Bracket Data | 2/2 | ✓ Complete | 2026-03-03 |
-| 3. Baseline Model and Temporal Validation | 0/5 | Not started | - |
+| 3. Baseline Model and Temporal Validation | 0/3 | Planned | - |
 | 4. Bracket Simulator | 0/6 | Not started | - |
 | 5. Backtesting Harness | 0/5 | Not started | - |
 | 6. Ensemble Models | 0/5 | Not started | - |
