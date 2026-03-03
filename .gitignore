@@ -1,5 +1,7 @@
 # Data files — raw and processed data not committed
-data/
+# Note: data/seeds/ is excluded so hand-curated CSV seed files can be committed
+data/raw/
+data/processed/
 
 # Kaggle credentials
 .kaggle/
