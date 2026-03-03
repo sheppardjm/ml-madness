@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 3 (Baseline Model and Temporal Validation) — Plan 01 complete
+**Current focus:** Phase 3 (Baseline Model and Temporal Validation) — Plan 02 complete
 
 ## Current Position
 
 Phase: 3 of 10 (Baseline Model and Temporal Validation) — In progress
-Plan: 1 of 5 in phase 03
-Status: 03-01 complete — historical ratings fetched, feature engineering built
-Last activity: 2026-03-03 — Completed 03-01-PLAN.md (historical ratings + matchup dataset)
+Plan: 2 of 5 in phase 03
+Status: 03-02 complete — temporal CV harness + logistic regression baseline trained
+Last activity: 2026-03-03 — Completed 03-02-PLAN.md (walk-forward CV + logistic baseline model)
 
-Progress: [████░░░░░░] 23% (7/30 plans estimated)
+Progress: [████░░░░░░] 27% (8/30 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: ~17 min
+- Total plans completed: 7
+- Average duration: ~14 min
 - Total execution time: ~1.7 hours
 
 **By Phase:**
@@ -29,10 +29,10 @@ Progress: [████░░░░░░] 23% (7/30 plans estimated)
 |-------|-------|-------|----------|
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
-| 03-baseline-model-and-temporal-validation | 1 | ~12 min | ~12 min |
+| 03-baseline-model-and-temporal-validation | 2 | ~15 min | ~8 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (~5 min), 02-01 (~22 min), 02-02 (~5 min), 03-01 (~12 min)
+- Last 5 plans: 02-01 (~22 min), 02-02 (~5 min), 03-01 (~12 min), 03-02 (~3 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; complex integrations with data quality issues 20-25 min
 
 *Updated after each plan completion*
@@ -71,6 +71,10 @@ Recent decisions affecting current work:
 - [03-01]: team_aliases.csv bug fixed: ID 1299 was mislabeled as NC Central (should be NC A&T); NC State, NC A&T, College of Charleston, Saint Francis/St Francis PA all needed CBBDATA_NAME_OVERRIDES to avoid fuzzy false positives
 - [03-01]: build_stats_lookup() replaces 2025 historical archive data with current_season_stats.parquet; current_season_stats uses column 'year' not 'season' — rename handled in build_stats_lookup()
 - [03-01]: FEATURE_COLS = ['adjoe_diff', 'adjde_diff', 'barthag_diff', 'seed_diff', 'adjt_diff', 'wab_diff'] — canonical ordering; team_a = lower SeedNum (better seed); label=1 if team_a wins
+- [03-02]: BACKTEST_YEARS = [2022, 2023, 2024, 2025] — canonical holdout years; walk_forward_splits() is the only approved CV method for all future models
+- [03-02]: Logistic regression baseline: Optuna log-uniform C search [1e-3,100], 50 trials, best C=2.7277, mean Brier=0.1896; ensemble in phase 6 must beat this
+- [03-02]: barthag_diff coefficient is negative (-0.82) due to multicollinearity with adjoe_diff/adjde_diff — expected behavior; model predictions are directionally correct
+- [03-02]: joblib artifact pattern — model artifacts always include model, scaler, feature_names, train_seasons, best_C, sklearn_version; load_model() warns on version mismatch
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-03T20:34:04Z
-Stopped at: Completed 03-01-PLAN.md — historical ratings + feature engineering complete
+Last session: 2026-03-03T20:41:00Z
+Stopped at: Completed 03-02-PLAN.md — temporal CV harness + logistic regression baseline
 Resume file: None
