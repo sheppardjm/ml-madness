@@ -13,7 +13,7 @@ This project builds a Python-first ML pipeline that ingests 20+ years of NCAA to
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Historical Data Pipeline** - Ingest, clean, and normalize 20+ years of tournament data from Kaggle and resolve team name conflicts across all sources
-- [ ] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
+- [x] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
 - [ ] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
 - [ ] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
 - [ ] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
@@ -285,7 +285,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Historical Data Pipeline | 3/3 | ✓ Complete | 2026-03-02 |
-| 2. Current Season and Bracket Data | 0/2 | Planned | - |
+| 2. Current Season and Bracket Data | 2/2 | ✓ Complete | 2026-03-03 |
 | 3. Baseline Model and Temporal Validation | 0/5 | Not started | - |
 | 4. Bracket Simulator | 0/6 | Not started | - |
 | 5. Backtesting Harness | 0/5 | Not started | - |

@@ -8,9 +8,9 @@
 ### Data Pipeline
 
 - [ ] **DATA-01**: Historical tournament data backfilled from Kaggle (20+ years of seasons)
-- [ ] **DATA-02**: Current 2025-26 season stats pulled from CBBpy + cbbdata APIs
+- [x] **DATA-02**: Current 2025-26 season stats pulled from CBBpy + cbbdata APIs
 - [ ] **DATA-03**: Team name normalization mapping across all data sources (ESPN, Kaggle, Sports-Reference, cbbdata)
-- [ ] **DATA-04**: Auto-fetch 68-team bracket from ESPN unofficial API with manual CSV fallback
+- [x] **DATA-04**: Auto-fetch 68-team bracket from ESPN unofficial API with manual CSV fallback
 
 ### Modeling
 
@@ -72,8 +72,8 @@
 |-------------|-------|--------|
 | DATA-01 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
-| DATA-02 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
 | MODL-01 | Phase 3 | Pending |
 | MODL-03 | Phase 3 | Pending |
 | MODL-04 | Phase 3 | Pending |
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 after roadmap creation — all 18 requirements mapped*
+*Last updated: 2026-03-03 after Phase 2 completion — DATA-02, DATA-04 marked Complete*
