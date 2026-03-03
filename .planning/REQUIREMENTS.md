@@ -70,8 +70,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
 | DATA-02 | Phase 2 | Pending |
 | DATA-04 | Phase 2 | Pending |
 | MODL-01 | Phase 3 | Pending |
