@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 1 complete — ready for Phase 2 (Current Season Data Pipeline)
+**Current focus:** Phase 2, Plan 1 complete — efficiency metrics and team normalization updated; ready for bracket fetch (02-02)
 
 ## Current Position
 
-Phase: 1 of 10 (Historical Data Pipeline) — COMPLETE
-Plan: 3 of 3 in phase 01 (all complete)
-Status: Phase 1 complete — all four ROADMAP success criteria verified and passing
-Last activity: 2026-03-02 — Completed 01-03-PLAN.md (team normalization table, query helpers, Phase 1 end-to-end verification)
+Phase: 2 of 10 (Current Season and Bracket Data) — In progress
+Plan: 1 of 3 in phase 02 (02-01 complete)
+Status: 02-01 complete — cbbdata client, team normalization updated, efficiency metrics written
+Last activity: 2026-03-03 — Completed 02-01-PLAN.md (cbbdata API client, espn_slug population, current_season_stats.parquet)
 
-Progress: [███░░░░░░░] 10% (3/30 plans estimated)
+Progress: [████░░░░░░] 13% (4/30 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: ~23 min
-- Total execution time: ~1.2 hours
+- Total plans completed: 4
+- Average duration: ~21 min
+- Total execution time: ~1.6 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
+| 02-current-season-and-bracket-data | 1 | ~22 min | ~22 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~45 min), 01-02 (~20 min), 01-03 (~5 min)
-- Trend: Excellent — well-scoped plans execute faster as the codebase matures
+- Last 5 plans: 01-01 (~45 min), 01-02 (~20 min), 01-03 (~5 min), 02-01 (~22 min)
+- Trend: Consistent ~20-25 min per plan at this scope level
 
 *Updated after each plan completion*
 
@@ -53,27 +54,34 @@ Recent decisions affecting current work:
 - [01-02]: 2021 had no First Four games (COVID bubble tournament) — IsFirstFour is correctly absent for 2021 in tournament_games.parquet
 - [01-02]: Kaggle 2026 competition dataset includes 2026 regular season in progress (3893 games through 2026-02-04) — downstream queries must apply get_cutoff() for 2026 predictions
 - [01-03]: data/seeds/*.csv is committed to git (changed .gitignore from data/ to data/raw/ and data/processed/) — seed files are hand-curated code artifacts, not data
-- [01-03]: canonical_name defaults to kaggle_name for teams without alias overrides; team_aliases.csv only needed for cross-source conflicts (59 teams out of 381)
+- [01-03]: canonical_name defaults to kaggle_name for teams without alias overrides; team_aliases.csv only needed for cross-source conflicts (101 teams total as of 02-01)
 - [01-03]: All four Phase 1 ROADMAP success criteria verified — zero duplicates, correct season coverage, First Four correctly labeled, cutoff enforcement passing
 - [01-03]: get_season_stats_with_cutoff() is the canonical stat query interface — all downstream phases must use this function to avoid data leakage
+- [02-01]: cbbdata login API response format is dict with api_key key, NOT a list as documented in R package (response.json()[0] fails; use response.json()["api_key"])
+- [02-01]: cbbdata torvik/ratings endpoint has no 2025-26 season data as of 2026-03-03 — max available is year=2025 with date 2025-03-16; archive fallback used as proxy
+- [02-01]: current_season_stats.parquet contains 2024-25 season metrics (not 2025-26) — must refresh when cbbdata indexes 2025-26 data (check year=2026 returning >0 barthag rows)
+- [02-01]: team_aliases.csv expanded from 65 to 101 entries — cbbdata uses full names where Kaggle uses abbreviations; explicit mapping required for ~36 teams
+- [02-01]: Fuzzy match ambiguity guard required to prevent directional-prefix false positives (E+Illinois->Illinois, West+Georgia->Georgia St.) in token_sort_ratio matching
+- [02-01]: cbbdata account credentials: username=madness2026 — CBD_USERNAME/CBD_PASSWORD env vars must be set before running cbbdata ingestion scripts
 
 ### Pending Todos
 
-None.
+- Refresh current_season_stats.parquet when cbbdata indexes 2025-26 season (check /api/torvik/ratings?year=2026 for non-empty barthag)
 
 ### Blockers/Concerns
 
-- [Pre-Phase 2]: cbbdata API free key must be obtained at cbbdata.aweatherman.com before Phase 2 begins — verify Python REST access (documentation is R-centric)
-- [Hard deadline]: Auto-fetch bracket pipeline (Phase 2, plan 02-03) must be operational before Selection Sunday 2026 (mid-March) — one-shot operation with no retry window
+- [CRITICAL - Hard deadline]: Bracket fetch pipeline (Phase 2, plan 02-02) must be operational before Selection Sunday 2026 (2026-03-15) — one-shot operation with no retry window; only 12 days remaining
+- [Important]: current_season_stats.parquet contains 2024-25 season metrics as proxy — downstream modeling will use last season's efficiency as 2026 features; acceptable but suboptimal
 - [Non-blocking]: Kaggle API key malformed — fix ~/.kaggle/kaggle.json for future automated refreshes, but not required until next Kaggle dataset refresh
-- [Note]: 2026 Selection Sunday date not yet in SELECTION_SUNDAY_DATES — must be added once announced (mid-March 2026) to enable get_cutoff(2026); get_cutoff(2026) currently raises ValueError
-- [Phase 2]: espn_slug column in team_normalization.parquet is empty for all teams — Phase 2 must populate this once ESPN team list is available
+- [Resolved - Pre-Phase 2]: cbbdata API key obtained; authentication working; Python REST access confirmed
+- [Resolved - 02-01]: 2026 Selection Sunday date (2026-03-15) added to SELECTION_SUNDAY_DATES; get_cutoff(2026) now works
+- [Resolved - 02-01]: espn_slug column populated for 360/381 teams in team_normalization.parquet
 - [Resolved - 01-01]: Kaggle 2025 data confirmed present — MNCAATourneyCompactResults.csv covers 1985-2025, max season = 2025
 - [Resolved - 01-02]: All three Parquet files written — tournament_games.parquet (1449 games), seeds.parquet (1472 entries), regular_season.parquet (122775 games)
-- [Resolved - 01-03]: team_normalization.parquet complete — 381 teams, 100% tournament coverage, 59 cross-source aliases resolved
+- [Resolved - 01-03]: team_normalization.parquet complete — 381 teams, 100% tournament coverage, 101 cross-source aliases resolved
 
 ## Session Continuity
 
-Last session: 2026-03-02
-Stopped at: Completed 01-03-PLAN.md — Phase 1 complete; all four ROADMAP success criteria verified; team_normalization.parquet, query_helpers.py, fuzzy_match.py, build_team_table.py all created and passing
+Last session: 2026-03-03
+Stopped at: Completed 02-01-PLAN.md — cbbdata client created, team normalization updated (espn_slug/cbbdata_name), current_season_stats.parquet written (364 teams, 100% match rate)
 Resume file: None
