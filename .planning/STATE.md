@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 2 complete — ready for Phase 3 (Baseline Model and Temporal Validation)
+**Current focus:** Phase 3 (Baseline Model and Temporal Validation) — Plan 01 complete
 
 ## Current Position
 
-Phase: 3 of 10 (Baseline Model and Temporal Validation) — Not started
-Plan: 0 of 5 in phase 03
-Status: Phase 2 verified and complete; Phase 3 not yet planned
-Last activity: 2026-03-03 — Phase 2 verified (4/4 must-haves passed)
+Phase: 3 of 10 (Baseline Model and Temporal Validation) — In progress
+Plan: 1 of 5 in phase 03
+Status: 03-01 complete — historical ratings fetched, feature engineering built
+Last activity: 2026-03-03 — Completed 03-01-PLAN.md (historical ratings + matchup dataset)
 
-Progress: [████░░░░░░] 20% (6/30 plans estimated)
+Progress: [████░░░░░░] 23% (7/30 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: ~19 min
-- Total execution time: ~1.6 hours
+- Total plans completed: 6
+- Average duration: ~17 min
+- Total execution time: ~1.7 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████░░░░░░] 20% (6/30 plans estimated)
 |-------|-------|-------|----------|
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
+| 03-baseline-model-and-temporal-validation | 1 | ~12 min | ~12 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (~20 min), 01-03 (~5 min), 02-01 (~22 min), 02-02 (~5 min)
-- Trend: Well-scoped plans with clear prior context execute in 5-10 min; complex integrations 20-25 min
+- Last 5 plans: 01-03 (~5 min), 02-01 (~22 min), 02-02 (~5 min), 03-01 (~12 min)
+- Trend: Well-scoped plans with clear prior context execute in 5-15 min; complex integrations with data quality issues 20-25 min
 
 *Updated after each plan completion*
 
@@ -66,6 +67,10 @@ Recent decisions affecting current work:
 - [02-02]: ESPN bracket data only available after Selection Sunday (2026-03-15) — fetch_espn_bracket() returns 0 rows before that date (expected, not an error)
 - [02-02]: espn_name column in team_normalization has 317/381 empty strings (not NULLs) — filter on `espn_name != ''` not just `IS NOT NULL` in all downstream queries
 - [02-02]: resolve_bracket_teams() uses 4-pass matching (espn_name -> canonical_name -> slug -> fuzzy@80) — raises AssertionError on unresolved teams to force fix before simulation
+- [03-01]: cbbdata only has year-end ratings for 2008-2024; 2003-2007 unavailable — historical_torvik_ratings.parquet covers 17 seasons (not 22); 313 pre-2008 tournament games dropped from matchup dataset
+- [03-01]: team_aliases.csv bug fixed: ID 1299 was mislabeled as NC Central (should be NC A&T); NC State, NC A&T, College of Charleston, Saint Francis/St Francis PA all needed CBBDATA_NAME_OVERRIDES to avoid fuzzy false positives
+- [03-01]: build_stats_lookup() replaces 2025 historical archive data with current_season_stats.parquet; current_season_stats uses column 'year' not 'season' — rename handled in build_stats_lookup()
+- [03-01]: FEATURE_COLS = ['adjoe_diff', 'adjde_diff', 'barthag_diff', 'seed_diff', 'adjt_diff', 'wab_diff'] — canonical ordering; team_a = lower SeedNum (better seed); label=1 if team_a wins
 
 ### Pending Todos
 
@@ -74,6 +79,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
+- [Resolved - 03-01]: team_aliases.csv NC A&T/NC Central ID swap corrected; NC State, Charleston, Saint Francis false positives fixed via CBBDATA_NAME_OVERRIDES
 - [Important]: current_season_stats.parquet contains 2024-25 season metrics as proxy — downstream modeling will use last season's efficiency as 2026 features; acceptable but suboptimal
 - [Time-sensitive]: Must run bracket fetch on/after Selection Sunday (2026-03-15 after 6 PM ET); CSV fallback is ready if ESPN auto-fetch fails
 - [Non-blocking]: Kaggle API key malformed — fix ~/.kaggle/kaggle.json for future automated refreshes, but not required until next Kaggle dataset refresh
@@ -87,6 +93,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Phase 2 verified and complete — all 4 success criteria passed; ROADMAP/STATE/REQUIREMENTS updated
+Last session: 2026-03-03T20:34:04Z
+Stopped at: Completed 03-01-PLAN.md — historical ratings + feature engineering complete
 Resume file: None
