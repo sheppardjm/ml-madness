@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 2, Plan 1 complete — efficiency metrics and team normalization updated; ready for bracket fetch (02-02)
+**Current focus:** Phase 2, Plan 2 complete — bracket fetch pipeline operational; ready for 02-03 (phase completion verification) or Phase 3
 
 ## Current Position
 
 Phase: 2 of 10 (Current Season and Bracket Data) — In progress
-Plan: 1 of 3 in phase 02 (02-01 complete)
-Status: 02-01 complete — cbbdata client, team normalization updated, efficiency metrics written
-Last activity: 2026-03-03 — Completed 02-01-PLAN.md (cbbdata API client, espn_slug population, current_season_stats.parquet)
+Plan: 2 of 3 in phase 02 (02-01 and 02-02 complete)
+Status: 02-02 complete — ESPN bracket auto-fetch, CSV fallback, team resolution, stats coverage verification
+Last activity: 2026-03-03 — Completed 02-02-PLAN.md (fetch_bracket.py: full bracket pipeline)
 
-Progress: [████░░░░░░] 13% (4/30 plans estimated)
+Progress: [████░░░░░░] 17% (5/30 plans estimated)
 
 ## Performance Metrics
 
@@ -28,11 +28,11 @@ Progress: [████░░░░░░] 13% (4/30 plans estimated)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
-| 02-current-season-and-bracket-data | 1 | ~22 min | ~22 min |
+| 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~45 min), 01-02 (~20 min), 01-03 (~5 min), 02-01 (~22 min)
-- Trend: Consistent ~20-25 min per plan at this scope level
+- Last 5 plans: 01-02 (~20 min), 01-03 (~5 min), 02-01 (~22 min), 02-02 (~5 min)
+- Trend: Well-scoped plans with clear prior context execute in 5-10 min; complex integrations 20-25 min
 
 *Updated after each plan completion*
 
@@ -63,16 +63,21 @@ Recent decisions affecting current work:
 - [02-01]: team_aliases.csv expanded from 65 to 101 entries — cbbdata uses full names where Kaggle uses abbreviations; explicit mapping required for ~36 teams
 - [02-01]: Fuzzy match ambiguity guard required to prevent directional-prefix false positives (E+Illinois->Illinois, West+Georgia->Georgia St.) in token_sort_ratio matching
 - [02-01]: cbbdata account credentials: username=madness2026 — CBD_USERNAME/CBD_PASSWORD env vars must be set before running cbbdata ingestion scripts
+- [02-02]: ESPN bracket data only available after Selection Sunday (2026-03-15) — fetch_espn_bracket() returns 0 rows before that date (expected, not an error)
+- [02-02]: espn_name column in team_normalization has 317/381 empty strings (not NULLs) — filter on `espn_name != ''` not just `IS NOT NULL` in all downstream queries
+- [02-02]: resolve_bracket_teams() uses 4-pass matching (espn_name -> canonical_name -> slug -> fuzzy@80) — raises AssertionError on unresolved teams to force fix before simulation
 
 ### Pending Todos
 
 - Refresh current_season_stats.parquet when cbbdata indexes 2025-26 season (check /api/torvik/ratings?year=2026 for non-empty barthag)
+- On Selection Sunday (2026-03-15): run `uv run python -m src.ingest.fetch_bracket` to confirm auto-fetch returns 68 teams; if <68, populate data/seeds/bracket_manual.csv
 
 ### Blockers/Concerns
 
-- [CRITICAL - Hard deadline]: Bracket fetch pipeline (Phase 2, plan 02-02) must be operational before Selection Sunday 2026 (2026-03-15) — one-shot operation with no retry window; only 12 days remaining
 - [Important]: current_season_stats.parquet contains 2024-25 season metrics as proxy — downstream modeling will use last season's efficiency as 2026 features; acceptable but suboptimal
+- [Time-sensitive]: Must run bracket fetch on/after Selection Sunday (2026-03-15 after 6 PM ET); CSV fallback is ready if ESPN auto-fetch fails
 - [Non-blocking]: Kaggle API key malformed — fix ~/.kaggle/kaggle.json for future automated refreshes, but not required until next Kaggle dataset refresh
+- [Resolved - 02-02]: Bracket fetch pipeline operational — ESPN auto-fetch + CSV fallback + team resolution + stats coverage verification all functional
 - [Resolved - Pre-Phase 2]: cbbdata API key obtained; authentication working; Python REST access confirmed
 - [Resolved - 02-01]: 2026 Selection Sunday date (2026-03-15) added to SELECTION_SUNDAY_DATES; get_cutoff(2026) now works
 - [Resolved - 02-01]: espn_slug column populated for 360/381 teams in team_normalization.parquet
@@ -83,5 +88,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 02-01-PLAN.md — cbbdata client created, team normalization updated (espn_slug/cbbdata_name), current_season_stats.parquet written (364 teams, 100% match rate)
+Stopped at: Completed 02-02-PLAN.md — ESPN bracket auto-fetch + CSV fallback + team resolution + stats coverage verification in src/ingest/fetch_bracket.py
 Resume file: None
