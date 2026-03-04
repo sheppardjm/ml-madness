@@ -34,8 +34,8 @@
 
 ### Web UI
 
-- [ ] **WEBU-01**: Visual 68-team bracket display with predicted winners
-- [ ] **WEBU-02**: Win probabilities shown per game matchup
+- [x] **WEBU-01**: Visual 68-team bracket display with predicted winners
+- [x] **WEBU-02**: Win probabilities shown per game matchup
 - [ ] **WEBU-03**: Interactive pick overrides with downstream cascade recalculation
 
 ## v2 Requirements
@@ -85,8 +85,8 @@
 | BACK-02 | Phase 5 | Complete |
 | MODL-02 | Phase 6 | Complete |
 | BACK-03 | Phase 7 | Complete |
-| WEBU-01 | Phase 9 | Pending |
-| WEBU-02 | Phase 9 | Pending |
+| WEBU-01 | Phase 9 | Complete |
+| WEBU-02 | Phase 9 | Complete |
 | WEBU-03 | Phase 10 | Pending |
 
 **Coverage:**
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-04 after Phase 5 completion — BACK-01, BACK-02 marked Complete*
+*Last updated: 2026-03-04 after Phase 9 completion — WEBU-01, WEBU-02 marked Complete*

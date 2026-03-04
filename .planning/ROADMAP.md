@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
 - [x] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
 - [x] **Phase 8: Feature Store** - Formalize the feature computation layer with a tested API, VIF analysis, and verified cutoff-date enforcement for historical replay
-- [ ] **Phase 9: Bracket Visualization UI** - Streamlit app displaying the full 68-team bracket as programmatic SVG with predicted winners and per-game win probabilities
+- [x] **Phase 9: Bracket Visualization UI** - Streamlit app displaying the full 68-team bracket as programmatic SVG with predicted winners and per-game win probabilities
 - [ ] **Phase 10: Interactive Override UI** - Add manual pick overrides to the bracket UI with downstream cascade recalculation and championship score display
 
 ## Phase Details
@@ -287,5 +287,5 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
 | 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
 | 8. Feature Store | 4/4 | ✓ Complete | 2026-03-04 |
-| 9. Bracket Visualization UI | 0/4 | Not started | - |
+| 9. Bracket Visualization UI | 4/4 | ✓ Complete | 2026-03-04 |
 | 10. Interactive Override UI | 0/5 | Not started | - |
