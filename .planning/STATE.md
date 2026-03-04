@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 5 IN PROGRESS — backtesting harness; 05-02 (orchestration loop) complete, ready for 05-03 (comparison report)
+**Current focus:** Phase 5 COMPLETE — backtesting harness; all 3 plans done (05-01 scoring, 05-02 orchestration, 05-03 validation). Phase 6 (ensemble model) is next.
 
 ## Current Position
 
-Phase: 5 of 10 (Backtesting Harness) — In progress
-Plan: 2 of 3 in phase 05
-Status: 05-02 complete — backtest() orchestrator: per-year refitting, bracket simulation, scoring, results.json
-Last activity: 2026-03-04 — Completed 05-02-PLAN.md (backtest orchestration loop)
+Phase: 5 of 10 (Backtesting Harness) — COMPLETE
+Plan: 3 of 3 in phase 05
+Status: 05-03 complete — validate_phase5() confirms 4/4 criteria: temporal isolation, Brier match, coverage, reproducibility
+Last activity: 2026-03-03 — Completed 05-03-PLAN.md (Phase 5 validation)
 
-Progress: [████████░░] 60% (18/30 plans estimated)
+Progress: [████████░░] 63% (19/30 plans estimated)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: ~12 min
+- Total plans completed: 11
+- Average duration: ~11 min
 - Total execution time: ~2 hours
 
 **By Phase:**
@@ -31,10 +31,10 @@ Progress: [████████░░] 60% (18/30 plans estimated)
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
 | 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
-| 05-backtesting-harness | 2 so far | ~5 min | ~2.5 min |
+| 05-backtesting-harness | 3 (complete) | ~7 min | ~2.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min), 05-02 (~3 min)
+- Last 5 plans: 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min), 05-02 (~3 min), 05-03 (~2 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -117,6 +117,9 @@ Recent decisions affecting current work:
 - [05-02]: backtest() extracts only best_C from artifact dict; artifact scaler/model never used for predictions -- each fold re-fits from scratch on Season < test_year
 - [05-02]: predict_fn returns 0.5 on KeyError -- handles First Four play-in teams absent from cbbdata stats snapshot
 - [05-02]: backtest/results.json verified reproducible: mean_brier=0.1900, mean_ESPN=912.5, 2024=62 games, 2025=60 games (matches evaluation_results.json)
+- [05-03]: validate_phase5() confirms 4/4 criteria: temporal isolation assert (max train season=2024), Brier delta=0 vs evaluation_results.json, all 4 BACKTEST_YEARS present with dynamic upset counts, re-run reproducibility (0 differences)
+- [05-03]: 2025 ESPN score=1200 in [1100,1300]; all 4 top #1 seeds reached Final Four, championship missed -- BACK-01 PASS
+- [05-03]: Variable shadowing guard: inner loop variables must not reuse outer counter names (total, passed) -- silent correctness bug in display; renamed to r_correct/r_total
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T04:48:27Z
-Stopped at: Completed 05-02-PLAN.md — backtest orchestration loop (backtest(), make_predict_fn(), results.json)
+Last session: 2026-03-04T04:54:05Z
+Stopped at: Completed 05-03-PLAN.md — Phase 5 validation (validate_phase5(), 4/4 criteria PASS)
 Resume file: None
