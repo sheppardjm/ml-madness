@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 3 COMPLETE — all 4 success criteria pass; ready for Phase 4 (bracket simulation infrastructure)
+**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-01 complete (bracket_schema.py)
 
 ## Current Position
 
-Phase: 3 of 10 (Baseline Model and Temporal Validation) — COMPLETE
-Plan: 4 of 4 in phase 03 (03-04 was the gap closure plan)
-Status: All Phase 3 success criteria PASS — no_overconfident_top_seed=true, mean_brier=0.1900
-Last activity: 2026-03-04 — Completed 03-04-PLAN.md (isotonic calibration gap closure)
+Phase: 4 of 10 (Bracket Simulator) — In progress
+Plan: 1 of 6 in phase 04
+Status: 04-01 complete — bracket_schema.py with slot tree, seedings, predict_fn
+Last activity: 2026-03-04 — Completed 04-01-PLAN.md (bracket schema foundational module)
 
-Progress: [█████░░░░░] 33% (10/30 plans estimated)
+Progress: [█████░░░░░] 37% (11/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,9 +30,10 @@ Progress: [█████░░░░░] 33% (10/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
+| 04-bracket-simulator | 1 (in progress) | ~2 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (~12 min), 03-02 (~3 min), 03-03 (~6 min), 03-04 (~12 min)
+- Last 5 plans: 03-01 (~12 min), 03-02 (~3 min), 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -82,6 +83,10 @@ Recent decisions affecting current work:
 - [03-04]: Calibrator stored as plain dict spec in artifact (not object) to prevent __main__ pickle path corruption; load_model() reconstructs ClippedCalibrator from clip_lo/clip_hi params every time
 - [03-04]: ClippedCalibrator clips probabilities to [0.05, 0.89] — eliminates all 16 overconfident top-seed predictions with only +0.0004 Brier penalty; calibration_method='isotonic' retained for semantic compat
 - [03-04]: Phase 3 final benchmark: mean Brier=0.1900, no top-seed matchup above P=0.89; all 4 success criteria PASS
+- [04-01]: FF slots identified as those not starting with 'R' (W16, X11, Y11, Y16 for 2025); robust to region naming changes
+- [04-01]: build_predict_fn returns (predict_fn, stats_lookup) tuple so 04-04 score_predictor can access stats without re-loading
+- [04-01]: predict_fn closure captures season at build time — caller must pass correct season to build_predict_fn()
+- [04-01]: Topological ordering key: slot_round_number() returns 0 for FF, int(slot_id[1]) for R-prefixed — valid for Kaggle R1-R6 convention
 
 ### Pending Todos
 
@@ -105,6 +110,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T02:38:04Z
-Stopped at: Completed 03-04-PLAN.md — isotonic calibration gap closure, Phase 3 complete
+Last session: 2026-03-04T03:20:18Z
+Stopped at: Completed 04-01-PLAN.md — bracket_schema.py foundational module
 Resume file: None
