@@ -1,0 +1,165 @@
+{
+  "model": "ensemble",
+  "best_C": 2.391579594561129,
+  "years_evaluated": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "per_year": [
+    {
+      "year": 2022,
+      "predicted_champion": 1222,
+      "espn_score": 690,
+      "espn_max": 1920,
+      "per_round_accuracy": {
+        "Round of 64": 0.71875,
+        "Round of 32": 0.6875,
+        "Sweet 16": 0.5,
+        "Elite 8": 0.25,
+        "Final Four": 0.0,
+        "Championship": 0.0
+      },
+      "per_round_correct": {
+        "Round of 64": 23,
+        "Round of 32": 11,
+        "Sweet 16": 4,
+        "Elite 8": 1,
+        "Final Four": 0,
+        "Championship": 0
+      },
+      "per_round_total": {
+        "Round of 64": 32,
+        "Round of 32": 16,
+        "Sweet 16": 8,
+        "Elite 8": 4,
+        "Final Four": 2,
+        "Championship": 1
+      },
+      "brier": 0.17929764301418732,
+      "log_loss": 0.5365658888386624,
+      "accuracy": 0.746031746031746,
+      "n_games": 63,
+      "n_upsets": 21,
+      "upset_correct": 12,
+      "upset_detection_rate": 0.5714285714285714
+    },
+    {
+      "year": 2023,
+      "predicted_champion": 1163,
+      "espn_score": 1100,
+      "espn_max": 1920,
+      "per_round_accuracy": {
+        "Round of 64": 0.625,
+        "Round of 32": 0.6875,
+        "Sweet 16": 0.375,
+        "Elite 8": 0.25,
+        "Final Four": 0.5,
+        "Championship": 1.0
+      },
+      "per_round_correct": {
+        "Round of 64": 20,
+        "Round of 32": 11,
+        "Sweet 16": 3,
+        "Elite 8": 1,
+        "Final Four": 1,
+        "Championship": 1
+      },
+      "per_round_total": {
+        "Round of 64": 32,
+        "Round of 32": 16,
+        "Sweet 16": 8,
+        "Elite 8": 4,
+        "Final Four": 2,
+        "Championship": 1
+      },
+      "brier": 0.1850198246335088,
+      "log_loss": 0.5475463578582196,
+      "accuracy": 0.6666666666666666,
+      "n_games": 63,
+      "n_upsets": 19,
+      "upset_correct": 7,
+      "upset_detection_rate": 0.3684210526315789
+    },
+    {
+      "year": 2024,
+      "predicted_champion": 1163,
+      "espn_score": 1260,
+      "espn_max": 1920,
+      "per_round_accuracy": {
+        "Round of 64": 0.6875,
+        "Round of 32": 0.875,
+        "Sweet 16": 0.375,
+        "Elite 8": 0.5,
+        "Final Four": 0.5,
+        "Championship": 1.0
+      },
+      "per_round_correct": {
+        "Round of 64": 22,
+        "Round of 32": 14,
+        "Sweet 16": 3,
+        "Elite 8": 2,
+        "Final Four": 1,
+        "Championship": 1
+      },
+      "per_round_total": {
+        "Round of 64": 32,
+        "Round of 32": 16,
+        "Sweet 16": 8,
+        "Elite 8": 4,
+        "Final Four": 2,
+        "Championship": 1
+      },
+      "brier": 0.1760023142569656,
+      "log_loss": 0.5251482476943012,
+      "accuracy": 0.7258064516129032,
+      "n_games": 62,
+      "n_upsets": 19,
+      "upset_correct": 5,
+      "upset_detection_rate": 0.2631578947368421
+    },
+    {
+      "year": 2025,
+      "predicted_champion": 1181,
+      "espn_score": 1100,
+      "espn_max": 1920,
+      "per_round_accuracy": {
+        "Round of 64": 0.8125,
+        "Round of 32": 0.75,
+        "Sweet 16": 0.875,
+        "Elite 8": 1.0,
+        "Final Four": 0.0,
+        "Championship": 0.0
+      },
+      "per_round_correct": {
+        "Round of 64": 26,
+        "Round of 32": 12,
+        "Sweet 16": 7,
+        "Elite 8": 4,
+        "Final Four": 0,
+        "Championship": 0
+      },
+      "per_round_total": {
+        "Round of 64": 32,
+        "Round of 32": 16,
+        "Sweet 16": 8,
+        "Elite 8": 4,
+        "Final Four": 2,
+        "Championship": 1
+      },
+      "brier": 0.13640469528542068,
+      "log_loss": 0.4350626747410125,
+      "accuracy": 0.8333333333333334,
+      "n_games": 60,
+      "n_upsets": 11,
+      "upset_correct": 2,
+      "upset_detection_rate": 0.18181818181818182
+    }
+  ],
+  "mean_brier": 0.16918111929752058,
+  "mean_log_loss": 0.5110807922830489,
+  "mean_accuracy": 0.7429595494111624,
+  "mean_espn_score": 1037.5,
+  "generated_at": "2026-03-04"
+}

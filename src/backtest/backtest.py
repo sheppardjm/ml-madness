@@ -4,7 +4,14 @@ Backtest orchestration for NCAA tournament bracket prediction.
 Orchestrates the full feature-to-simulator-to-scoring pipeline across the
 2022-2025 tournament seasons with strict temporal isolation.
 
-Per-year protocol:
+Supports two models:
+- 'baseline': LogisticRegression (ClippedCalibrator), per-fold re-fit.
+- 'ensemble': TwoTierEnsemble (XGB + LGB + LR + meta-LR), per-fold rebuild
+  with nested sub-fold OOF for the meta-learner. The full-dataset
+  models/ensemble.joblib is NOT used -- each fold builds its own ensemble
+  from scratch using only Season < test_year data.
+
+Per-year protocol (baseline):
 1. Re-fit StandardScaler + LogisticRegression(C=best_C) + ClippedCalibrator
    using only Season < test_year training data -- never uses the saved model
    artifact's scaler or model for predictions (only extracts best_C).
@@ -16,6 +23,16 @@ Per-year protocol:
    compute_game_metrics() using the fold-specific scaler and calibrator.
 6. Write backtest/results.json with per_year array and summary aggregates.
 
+Per-year protocol (ensemble):
+1. Call _build_fold_ensemble(train_df, xgb_params, lgb_params, best_C) to
+   build a fold-specific TwoTierEnsemble using only Season < test_year data.
+   The meta-learner is trained on OOF from the last 3 seasons in train_df.
+2. Build predict_fn using fold_scaler.transform() + ensemble.predict_proba()
+   (factory pattern prevents late-binding closure bug).
+3. Steps 3-5 identical to baseline; compute_game_metrics receives fold_ensemble
+   as calibrated_clf (satisfies predict_proba() interface).
+4. Write backtest/ensemble_results.json (separate from baseline results.json).
+
 Exports:
     backtest()    - Main orchestration function
 """
@@ -24,19 +41,23 @@ from __future__ import annotations
 
 import json
 import pathlib
+import warnings
 from datetime import date
 from typing import Any
 
 import joblib
 import numpy as np
+from lightgbm import LGBMClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 from src.backtest.scoring import (
     build_actual_slot_winners,
     compute_game_metrics,
     score_bracket,
 )
+from src.models.ensemble import TwoTierEnsemble
 from src.models.features import (
     FEATURE_COLS,
     build_matchup_dataset,
@@ -57,6 +78,164 @@ _DEFAULT_PROCESSED_DIR = "data/processed"
 _DEFAULT_SEED_ROUND_SLOTS_CSV = "data/raw/kaggle/MNCAATourneySeedRoundSlots.csv"
 _DEFAULT_SLOTS_CSV = "data/raw/kaggle/MNCAATourneySlots.csv"
 _DEFAULT_OUTPUT_PATH = "backtest/results.json"
+_DEFAULT_ENSEMBLE_OUTPUT_PATH = "backtest/ensemble_results.json"
+
+
+# ---------------------------------------------------------------------------
+# _build_fold_ensemble
+# ---------------------------------------------------------------------------
+
+
+def _build_fold_ensemble(
+    train_df: "pd.DataFrame",
+    xgb_params: dict,
+    lgb_params: dict,
+    lr_best_C: float,
+) -> tuple[TwoTierEnsemble, StandardScaler]:
+    """Build a temporally isolated ensemble for one backtest fold.
+
+    The meta-learner is trained on sub-fold OOF predictions collected from
+    the last 3 available seasons in train_df (nested temporal isolation).
+    All 3 base models are then re-fit on the full train_df before creating
+    the TwoTierEnsemble.
+
+    This function does NOT use models/ensemble.joblib -- the fold ensemble
+    is built entirely from scratch using only pre-test_year data.
+
+    Args:
+        train_df: Training data with Season < test_year (temporal isolation).
+        xgb_params: XGBoost hyperparameters (from models/xgb_params.json).
+        lgb_params: LightGBM hyperparameters (from models/lgb_params.json).
+        lr_best_C: Best regularization C for the LR base model.
+
+    Returns:
+        Tuple of (fold_ensemble, fold_scaler) where:
+            fold_ensemble: TwoTierEnsemble fitted on train_df.
+            fold_scaler: StandardScaler fitted on train_df (for predict_fn scaling).
+    """
+    import pandas as pd  # noqa: F401 (type annotation only)
+
+    available_seasons = sorted(train_df["Season"].unique())
+    meta_sub_years = available_seasons[-3:]
+
+    oof_xgb: list[float] = []
+    oof_lgb: list[float] = []
+    oof_lr: list[float] = []
+    oof_labels: list[int] = []
+
+    # --- Sub-fold OOF collection for meta-learner training ---
+    for sub_year in meta_sub_years:
+        sub_train = train_df[train_df["Season"] < sub_year]
+        sub_test = train_df[train_df["Season"] == sub_year]
+
+        if len(sub_train) == 0 or len(sub_test) == 0:
+            continue
+
+        sub_scaler = StandardScaler()
+        X_sub_train = sub_scaler.fit_transform(sub_train[FEATURE_COLS].values)
+        X_sub_test = sub_scaler.transform(sub_test[FEATURE_COLS].values)
+        y_sub_train = sub_train["label"].values
+        y_sub_test = sub_test["label"].values
+
+        spw = float((y_sub_train == 0).sum() / (y_sub_train == 1).sum())
+
+        xgb_sub = XGBClassifier(
+            **xgb_params,
+            scale_pos_weight=spw,
+            objective="binary:logistic",
+            random_state=42,
+            n_jobs=1,
+            verbosity=0,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            xgb_sub.fit(X_sub_train, y_sub_train)
+
+        lgb_sub = LGBMClassifier(
+            **lgb_params,
+            class_weight="balanced",
+            objective="binary",
+            random_state=42,
+            n_jobs=1,
+            verbose=-1,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            lgb_sub.fit(X_sub_train, y_sub_train)
+
+        lr_sub = LogisticRegression(
+            C=lr_best_C,
+            class_weight="balanced",
+            solver="lbfgs",
+            max_iter=1000,
+            random_state=42,
+        )
+        lr_sub.fit(X_sub_train, y_sub_train)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            oof_xgb.extend(xgb_sub.predict_proba(X_sub_test)[:, 1].tolist())
+            oof_lgb.extend(lgb_sub.predict_proba(X_sub_test)[:, 1].tolist())
+        oof_lr.extend(
+            ClippedCalibrator(lr_sub).predict_proba(X_sub_test)[:, 1].tolist()
+        )
+        oof_labels.extend(y_sub_test.tolist())
+
+    # --- Train meta-learner on sub-fold OOF ---
+    X_meta = np.column_stack([oof_xgb, oof_lgb, oof_lr])
+    y_meta = np.array(oof_labels)
+    meta_lr = LogisticRegression(
+        C=1.0, solver="lbfgs", max_iter=1000, random_state=42
+    )
+    meta_lr.fit(X_meta, y_meta)
+
+    # --- Refit all 3 base models on the full train_df ---
+    fold_scaler = StandardScaler()
+    X_train_scaled = fold_scaler.fit_transform(train_df[FEATURE_COLS].values)
+    y_train = train_df["label"].values
+    spw_full = float((y_train == 0).sum() / (y_train == 1).sum())
+
+    xgb_final = XGBClassifier(
+        **xgb_params,
+        scale_pos_weight=spw_full,
+        objective="binary:logistic",
+        random_state=42,
+        n_jobs=1,
+        verbosity=0,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        xgb_final.fit(X_train_scaled, y_train)
+
+    lgb_final = LGBMClassifier(
+        **lgb_params,
+        class_weight="balanced",
+        objective="binary",
+        random_state=42,
+        n_jobs=1,
+        verbose=-1,
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        lgb_final.fit(X_train_scaled, y_train)
+
+    lr_final = LogisticRegression(
+        C=lr_best_C,
+        class_weight="balanced",
+        solver="lbfgs",
+        max_iter=1000,
+        random_state=42,
+    )
+    lr_final.fit(X_train_scaled, y_train)
+
+    fold_ensemble = TwoTierEnsemble(
+        scaler=fold_scaler,
+        xgb=xgb_final,
+        lgb=lgb_final,
+        lr_base=lr_final,
+        meta_lr=meta_lr,
+    )
+    return fold_ensemble, fold_scaler
 
 
 # ---------------------------------------------------------------------------
@@ -75,20 +254,24 @@ def backtest(
 ) -> dict[str, Any]:
     """Run the full backtest across historical tournament seasons.
 
-    For each backtest year, re-fits a StandardScaler + LogisticRegression +
-    ClippedCalibrator using ONLY data from seasons strictly before that year
-    (temporal isolation). Simulates the bracket deterministically and scores
-    against actual tournament results.
+    For each backtest year, re-fits a fold-specific model using ONLY data
+    from seasons strictly before that year (temporal isolation). Simulates
+    the bracket deterministically and scores against actual tournament results.
 
-    The saved model artifact (models/logistic_baseline.joblib) is used ONLY
-    to extract the best_C hyperparameter -- its trained scaler and model are
-    NOT used for predictions. Every backtest fold has its own scaler and model
-    fit from scratch on the available training data.
+    Baseline model:
+        Re-fits StandardScaler + LogisticRegression(C=best_C) + ClippedCalibrator.
+        The saved artifact is used ONLY to extract best_C.
+
+    Ensemble model:
+        Calls _build_fold_ensemble() to build a TwoTierEnsemble per fold.
+        The meta-learner is trained on OOF from the last 3 available seasons
+        before test_year (nested temporal isolation). The full-dataset
+        models/ensemble.joblib is NOT used for backtesting.
 
     Args:
         year_range: List of tournament years to evaluate. Defaults to
             BACKTEST_YEARS = [2022, 2023, 2024, 2025].
-        model: Model identifier. Currently only "baseline" is supported.
+        model: Model identifier: 'baseline' or 'ensemble'.
         model_path: Path to the saved model artifact (for extracting best_C).
             Default: models/logistic_baseline.joblib.
         processed_dir: Directory containing .parquet files used by
@@ -99,8 +282,10 @@ def backtest(
             Default: data/raw/kaggle/MNCAATourneySeedRoundSlots.csv.
         slots_csv: Path to MNCAATourneySlots.csv used by simulate_bracket().
             Default: data/raw/kaggle/MNCAATourneySlots.csv.
-        output_path: Destination for backtest/results.json.
-            Default: backtest/results.json.
+        output_path: Destination for JSON results. Defaults to
+            'backtest/results.json' for baseline; ensemble automatically
+            uses 'backtest/ensemble_results.json' unless output_path is
+            explicitly overridden.
 
     Returns:
         Dict with keys:
@@ -115,17 +300,21 @@ def backtest(
             'generated_at' (str): ISO date string.
 
     Raises:
-        ValueError: If model != "baseline" or year_range contains invalid years.
+        ValueError: If model is not 'baseline' or 'ensemble'.
         FileNotFoundError: If model artifact or data files are missing.
     """
     # ------------------------------------------------------------------
     # Step 1: Validate inputs
     # ------------------------------------------------------------------
-    if model != "baseline":
+    if model not in ("baseline", "ensemble"):
         raise ValueError(
             f"Unsupported model: {model!r}. "
-            "Currently only 'baseline' (LogisticRegression) is supported."
+            "Supported: 'baseline', 'ensemble'."
         )
+
+    # Ensemble uses a separate output file by default to preserve baseline results
+    if model == "ensemble" and output_path == _DEFAULT_OUTPUT_PATH:
+        output_path = _DEFAULT_ENSEMBLE_OUTPUT_PATH
 
     if year_range is None:
         year_range = BACKTEST_YEARS
@@ -134,6 +323,7 @@ def backtest(
     print("NCAA Tournament Bracket Backtest")
     print(f"  Model:  {model}")
     print(f"  Years:  {year_range}")
+    print(f"  Output: {output_path}")
     print("=" * 70)
 
     # ------------------------------------------------------------------
@@ -150,6 +340,17 @@ def backtest(
     best_C = float(artifact["best_C"])
     print(f"\nLoaded best_C={best_C:.6f} from {model_path}")
     print("  (Model/scaler from artifact NOT used for predictions -- per-fold refitting)")
+
+    # ------------------------------------------------------------------
+    # Step 2b: Load ensemble-specific params (if model == 'ensemble')
+    # ------------------------------------------------------------------
+    xgb_params: dict | None = None
+    lgb_params: dict | None = None
+    if model == "ensemble":
+        xgb_params = json.loads(pathlib.Path("models/xgb_params.json").read_text())
+        lgb_params = json.loads(pathlib.Path("models/lgb_params.json").read_text())
+        print(f"  XGBoost params loaded from models/xgb_params.json")
+        print(f"  LightGBM params loaded from models/lgb_params.json")
 
     # ------------------------------------------------------------------
     # Step 3: Build shared data structures (loaded once, used across all years)
@@ -187,61 +388,110 @@ def backtest(
         print(f"  Training games:   {len(train_df)}")
         print(f"  Test games:       {len(test_df)}")
 
-        # Step 4a (continued): Re-fit StandardScaler on training data ONLY
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(train_df[FEATURE_COLS].values)
-        y_train = train_df["label"].values
+        # -------------------------------------------------------------------
+        # BASELINE branch: re-fit LR + ClippedCalibrator
+        # -------------------------------------------------------------------
+        if model == "baseline":
+            # Step 4a (continued): Re-fit StandardScaler on training data ONLY
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(train_df[FEATURE_COLS].values)
+            y_train = train_df["label"].values
 
-        # Step 4a (continued): Re-fit LogisticRegression with best_C
-        clf = LogisticRegression(
-            C=best_C,
-            class_weight="balanced",
-            solver="lbfgs",
-            max_iter=1000,
-            random_state=42,
-        )
-        clf.fit(X_train_scaled, y_train)
+            # Step 4a (continued): Re-fit LogisticRegression with best_C
+            clf = LogisticRegression(
+                C=best_C,
+                class_weight="balanced",
+                solver="lbfgs",
+                max_iter=1000,
+                random_state=42,
+            )
+            clf.fit(X_train_scaled, y_train)
 
-        # Step 4a (continued): Wrap in ClippedCalibrator (no re-fit needed -- prefit)
-        calibrated_clf = ClippedCalibrator(clf, clip_lo=CLIP_LO, clip_hi=CLIP_HI)
+            # Step 4a (continued): Wrap in ClippedCalibrator (no re-fit needed -- prefit)
+            calibrated_clf = ClippedCalibrator(clf, clip_lo=CLIP_LO, clip_hi=CLIP_HI)
 
-        print(
-            f"  Model re-fit: C={best_C:.4f}, "
-            f"clip=[{CLIP_LO}, {CLIP_HI}]"
-        )
+            print(
+                f"  Model re-fit: C={best_C:.4f}, "
+                f"clip=[{CLIP_LO}, {CLIP_HI}]"
+            )
 
-        # Step 4b: Build predict_fn closure (captures year-specific scaler/model)
-        # Default args pattern binds current-loop variables at definition time,
-        # preventing late-binding closure bugs.
-        def make_predict_fn(
-            _year: int = test_year,
-            _scaler: StandardScaler = scaler,
-            _clf: ClippedCalibrator = calibrated_clf,
-        ):
-            def predict_fn(team_a_id: int, team_b_id: int) -> float:
-                """Predict P(team_a beats team_b) using fold-specific model.
+            # Step 4b: Build predict_fn closure (captures year-specific scaler/model)
+            # Default args pattern binds current-loop variables at definition time,
+            # preventing late-binding closure bugs.
+            def make_predict_fn(
+                _year: int = test_year,
+                _scaler: StandardScaler = scaler,
+                _clf: ClippedCalibrator = calibrated_clf,
+            ):
+                def predict_fn(team_a_id: int, team_b_id: int) -> float:
+                    """Predict P(team_a beats team_b) using fold-specific model.
 
-                team_a_id must have the lower seed number (better seed).
-                Returns 0.5 for KeyError (missing teams -- First Four edge case).
+                    team_a_id must have the lower seed number (better seed).
+                    Returns 0.5 for KeyError (missing teams -- First Four edge case).
+                    """
+                    try:
+                        features = compute_features(
+                            _year, team_a_id, team_b_id, stats_lookup
+                        )
+                    except KeyError:
+                        # First Four teams or teams absent from stats_lookup
+                        # (e.g., some small-school play-in participants)
+                        return 0.5
+
+                    x = np.array(
+                        [features[col] for col in FEATURE_COLS], dtype=float
+                    ).reshape(1, -1)
+                    x_scaled = _scaler.transform(x)
+                    return float(_clf.predict_proba(x_scaled)[0, 1])
+
+                return predict_fn
+
+            predict_fn = make_predict_fn()
+
+        # -------------------------------------------------------------------
+        # ENSEMBLE branch: build per-fold TwoTierEnsemble
+        # -------------------------------------------------------------------
+        elif model == "ensemble":
+            print(f"  Building fold-specific ensemble (nested sub-fold OOF)...")
+            fold_ensemble, fold_scaler = _build_fold_ensemble(
+                train_df, xgb_params, lgb_params, best_C
+            )
+            calibrated_clf = fold_ensemble  # satisfies predict_proba() interface
+            scaler = fold_scaler
+
+            print(f"  Fold ensemble built successfully")
+
+            # Factory pattern: binds fold_ensemble and fold_scaler at definition time
+            # to prevent late-binding Python closure bug (all folds sharing last iteration)
+            def make_ensemble_predict_fn(
+                _year: int = test_year,
+                _ensemble: TwoTierEnsemble = fold_ensemble,
+                _scaler: StandardScaler = fold_scaler,
+            ):
+                """Create predict_fn for one ensemble backtest fold.
+
+                IMPORTANT: _scaler.transform() is called by THIS function.
+                TwoTierEnsemble.predict_proba() expects ALREADY-SCALED input
+                (the ensemble stores self.scaler for reference only and does NOT
+                call transform() internally). Do NOT add scaler.transform() inside
+                predict_proba() or you will get double-scaling.
                 """
-                try:
-                    features = compute_features(
-                        _year, team_a_id, team_b_id, stats_lookup
-                    )
-                except KeyError:
-                    # First Four teams or teams absent from stats_lookup
-                    # (e.g., some small-school play-in participants)
-                    return 0.5
+                def predict_fn(team_a_id: int, team_b_id: int) -> float:
+                    try:
+                        features = compute_features(
+                            _year, team_a_id, team_b_id, stats_lookup
+                        )
+                        x = np.array(
+                            [features[col] for col in FEATURE_COLS], dtype=float
+                        ).reshape(1, -1)
+                        x_scaled = _scaler.transform(x)
+                        return float(_ensemble.predict_proba(x_scaled)[0, 1])
+                    except KeyError:
+                        return 0.5
 
-                x = np.array(
-                    [features[col] for col in FEATURE_COLS], dtype=float
-                ).reshape(1, -1)
-                x_scaled = _scaler.transform(x)
-                return float(_clf.predict_proba(x_scaled)[0, 1])
+                return predict_fn
 
-            return predict_fn
-
-        predict_fn = make_predict_fn()
+            predict_fn = make_ensemble_predict_fn()
 
         # Step 4c: Load year-specific seedings and simulate bracket
         seedings = load_seedings(season=test_year)
@@ -279,6 +529,7 @@ def backtest(
         )
 
         # Step 4e: Compute game-level metrics using fold-specific scaler/model
+        # TwoTierEnsemble satisfies the calibrated_clf interface (predict_proba(X))
         game_metrics = compute_game_metrics(
             test_df=test_df,
             feature_cols=FEATURE_COLS,
@@ -352,6 +603,18 @@ def backtest(
     # Step 7: Print formatted comparison table
     # ------------------------------------------------------------------
     _print_results_table(per_year_results, mean_brier, mean_log_loss, mean_accuracy, mean_espn_score)
+
+    # ------------------------------------------------------------------
+    # Step 8: Print comparison vs baseline (ensemble only)
+    # ------------------------------------------------------------------
+    if model == "ensemble":
+        baseline_brier = 0.1900  # Phase 3 / Phase 5 benchmark
+        delta = mean_brier - baseline_brier
+        direction = "IMPROVEMENT" if delta < 0 else "REGRESSION"
+        print(f"\nEnsemble vs Baseline Comparison:")
+        print(f"  Ensemble mean Brier:  {mean_brier:.4f}")
+        print(f"  Baseline mean Brier:  {baseline_brier:.4f}")
+        print(f"  Delta:                {delta:+.4f} ({direction})")
 
     return results
 
@@ -443,12 +706,20 @@ def _print_results_table(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    results = backtest()
+    import sys
+
+    model_arg = sys.argv[1] if len(sys.argv) > 1 else "baseline"
+    results = backtest(model=model_arg)
 
     print("\nSummary:")
+    print(f"  Model:            {results['model']}")
     print(f"  Years evaluated:  {results['years_evaluated']}")
     print(f"  Mean Brier:       {results['mean_brier']:.4f}")
     print(f"  Mean Log-loss:    {results['mean_log_loss']:.4f}")
     print(f"  Mean Accuracy:    {results['mean_accuracy']:.1%}")
     print(f"  Mean ESPN Score:  {results['mean_espn_score']:.1f}")
-    print(f"\nResults saved to: backtest/results.json")
+
+    if model_arg == "baseline":
+        print(f"\nResults saved to: backtest/results.json")
+    else:
+        print(f"\nResults saved to: backtest/ensemble_results.json")
