@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-04 complete (championship game score predictor)
+**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-05 complete (override_map bracket lock-in)
 
 ## Current Position
 
 Phase: 4 of 10 (Bracket Simulator) — In progress
-Plan: 4 of 6 in phase 04
-Status: 04-04 complete — predict_championship_score() rule-based score predictor; championship_game key in deterministic output
-Last activity: 2026-03-04 — Completed 04-04-PLAN.md (Championship game score predictor)
+Plan: 5 of 6 in phase 04
+Status: 04-05 complete — override_map={slot_id: team_id} forces teams into slots in both deterministic and monte_carlo modes
+Last activity: 2026-03-04 — Completed 04-05-PLAN.md (Override map bracket lock-in)
 
-Progress: [██████░░░░] 47% (14/30 plans estimated)
+Progress: [██████░░░░] 50% (15/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,7 +30,7 @@ Progress: [██████░░░░] 47% (14/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
-| 04-bracket-simulator | 4 (in progress) | ~12 min | ~3 min |
+| 04-bracket-simulator | 5 (in progress) | ~15 min | ~3 min |
 
 **Recent Trend:**
 - Last 5 plans: 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min), 04-03 (~2 min), 04-04 (~5 min)
@@ -100,6 +100,11 @@ Recent decisions affecting current work:
 - [04-04]: adj_t==0.0 is a sentinel for missing data (per features.py convention) -- treated as fallback trigger alongside key-not-found; HISTORICAL_MEAN_TEMPO=67.0 used
 - [04-04]: championship_game key added only to deterministic mode (not monte_carlo) -- MC produces distribution, not a single game score
 - [04-04]: 2025 deterministic championship: team 1222 wins 72-63 over team 1196 (predicted_total=135, predicted_margin=9)
+- [04-05]: override_map validated once at top of simulate_bracket() before mode dispatch -- shared validation for both modes
+- [04-05]: Deterministic override: slot_prob[slot_id]=None for forced slots; output reports win_prob=1.0 (forced guarantee)
+- [04-05]: MC override: pre-fill occupants dict before traversal; overridden set tracks which to skip -- downstream sees forced winner naturally
+- [04-05]: Upstream slots (earlier rounds) are NOT changed by downstream overrides -- only overridden slot and its descendants affected
+- [04-05]: championship_game score prediction uses win_prob=1.0 when R6CH is forced (None champion_prob guard added)
 
 ### Pending Todos
 
@@ -123,6 +128,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:41:00Z
-Stopped at: Completed 04-04-PLAN.md — championship game score predictor
+Last session: 2026-03-04T03:44:08Z
+Stopped at: Completed 04-05-PLAN.md — override_map bracket lock-in
 Resume file: None
