@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 6 of 10 (Ensemble Models) — In progress
-Plan: 2 of 5 in phase 06
-Status: 06-02 complete — LightGBM Optuna sweep, best Brier=0.1931 (num_leaves=12), lgb_params.json saved
-Last activity: 2026-03-04 — Completed 06-02-PLAN.md (LightGBM training pipeline)
+Plan: 1 of 5 in phase 06 (06-01 now formally complete with SUMMARY)
+Status: 06-01 complete — XGBoost Optuna sweep, best Brier=0.1908 (n_estimators=98, max_depth=2), xgb_params.json saved; 06-02 (LightGBM) also complete
+Last activity: 2026-03-04 — Completed 06-01-PLAN.md (XGBoost training pipeline)
 
 Progress: [████████░░] 67% (20/30 plans estimated)
 
@@ -121,6 +121,10 @@ Recent decisions affecting current work:
 - [05-03]: validate_phase5() confirms 4/4 criteria: temporal isolation assert (max train season=2024), Brier delta=0 vs evaluation_results.json, all 4 BACKTEST_YEARS present with dynamic upset counts, re-run reproducibility (0 differences)
 - [05-03]: 2025 ESPN score=1200 in [1100,1300]; all 4 top #1 seeds reached Final Four, championship missed -- BACK-01 PASS
 - [05-03]: Variable shadowing guard: inner loop variables must not reuse outer counter names (total, passed) -- silent correctness bug in display; renamed to r_correct/r_total
+- [06-01]: XGBoost uses scale_pos_weight=(y_train==0).sum()/(y_train==1).sum() per fold -- XGBoost sklearn API does NOT support class_weight='balanced' (that's LightGBM only)
+- [06-01]: verbosity=0 for XGBoost; verbose=-1 for LightGBM -- NOT interchangeable between the two libraries
+- [06-01]: arm64 libomp fix on Intel-Homebrew Mac: xgboost 3.2.0 arm64 wheel expects /opt/homebrew/opt/libomp -- fix: copy arm64 libomp.dylib from MacPorts tbz2 into xgboost lib dir + install_name_tool rpath patch; must redo if .venv is recreated
+- [06-01]: XGBoost mean Brier=0.1908 (best params: n_estimators=98, max_depth=2, lr=0.0813) -- only +0.0008 above LR baseline; stacking ensemble (06-04) should improve upon individual models
 - [06-02]: LightGBM mean Brier=0.1931 vs LR baseline 0.1900 (+0.0031 delta) -- expected; individual GB models often slightly underperform logistic on small datasets; ensemble diversity is the goal
 - [06-02]: Optuna found num_leaves=12 (far below max 60) -- confirms small dataset needs very shallow trees; complexity constraint was correct
 - [06-02]: class_weight='balanced' for LightGBM (not scale_pos_weight which is XGBoost); verbose=-1 for LightGBM (not verbosity=0 which is XGBoost)
@@ -148,6 +152,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:44:30Z
-Stopped at: Completed 06-02-PLAN.md — LightGBM Optuna sweep pipeline (mean Brier=0.1931, lgb_params.json saved)
+Last session: 2026-03-04T05:48:18Z
+Stopped at: Completed 06-01-PLAN.md — XGBoost Optuna sweep pipeline, xgb_params.json saved, mean Brier=0.1908 vs LR baseline 0.1900
 Resume file: None
