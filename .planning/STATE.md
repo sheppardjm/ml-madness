@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 8 (Feature Store) verified and complete — 4/4 plans done, 4/4 success criteria verified. Ready for Phase 9 (Bracket Visualization UI).
+**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 1/4 plans done. Streamlit scaffold with model loading, ensemble predict_fn, and cached simulations complete.
 
 ## Current Position
 
-Phase: 8 of 10 (Feature Store) — Verified Complete
-Plan: 4 of 4 in phase 08 (all complete, verified)
-Status: Phase 8 verified — 4/4 must-haves pass, 23-test suite green, all 3 prior gaps closed
-Last activity: 2026-03-04 — Phase 8 execution + verification complete
+Phase: 9 of 10 (Bracket Visualization UI) — In Progress
+Plan: 1 of 4 in phase 09 (scaffold complete)
+Status: Phase 9 plan 01 complete — Streamlit app launches, model loads, simulations cached, tab skeleton ready
+Last activity: 2026-03-04 — Completed 09-01-PLAN.md (Streamlit scaffold)
 
-Progress: [█████████░] 93% (29/31 plans estimated)
+Progress: [█████████░] 94% (30/32 plans estimated)
 
 ## Performance Metrics
 
@@ -160,6 +160,9 @@ Recent decisions affecting current work:
 - [08-03]: Phase 8 pytest suite: 22 tests, session-scoped stats_lookup (built once), autouse reset_name_cache fixture; `uv run pytest tests/ -v` is canonical verification command for feature store
 - [08-04]: Gap-closure approach: when verifier finds goal-document mismatches (not code defects), update goal text to match decisions — SC-1 (WAB not SOS), SC-2 (VIF=11.2 accepted), SC-3 (by construction), SC-4 (feature-only symmetry)
 - [08-04]: model-level probability symmetry structurally impossible with current training convention (team_a = lower seed produces non-zero scaler means); P(Duke,Michigan)+P(Michigan,Duke)=1.179 is expected; documented in test_model_probability_asymmetry_documented()
+- [09-01]: streamlit's pandas<3 metadata constraint bypassed via [tool.uv] override-dependencies = ["pandas>=3.0.1"]; pandas 3.x is runtime-compatible with streamlit 1.55.0; requires-python narrowed to >=3.12,<3.14 and environments=darwin to scope lockfile
+- [09-01]: TwoTierEnsemble predict_fn pattern: scaler.transform() applied INSIDE predict_fn closure (before predict_proba), NOT inside predict_proba — prevents double-scaling per [06-03] canonical call pattern
+- [09-01]: load_team_info() queries seeds.parquet for TeamName (canonical display name source) — 68 teams per season including First Four teams
 
 ### Pending Todos
 
@@ -183,6 +186,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T15:23:01Z
-Stopped at: Completed 08-04-PLAN.md — gap closure plan; Phase 8 fully complete (4/4 plans); 23-test suite passing
+Last session: 2026-03-04T16:08:37Z
+Stopped at: Completed 09-01-PLAN.md — Streamlit scaffold with model loading, ensemble predict_fn, cached simulations, team info lookup
 Resume file: None
