@@ -247,7 +247,7 @@ Plans:
 
 ### Phase 10: Interactive Override UI
 
-**Goal**: Users can click a game slot in the bracket to override the predicted winner, and all downstream slots immediately recalculate using the Monte Carlo simulator with the override map applied.
+**Goal**: Users can select alternate winners for any game slot in the bracket via dropdown controls, and all downstream slots immediately recalculate using the simulator with the override map applied.
 
 **Depends on**: Phase 9 (bracket SVG UI), Phase 4 (override map injection in simulator)
 
@@ -259,14 +259,12 @@ Plans:
   3. The override state persists within a Streamlit session — refreshing the page or switching tabs does not clear manually entered overrides
   4. After an override, champion confidence percentage and advancement probabilities update to reflect the manual pick propagated through all downstream simulation
 
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 10-01: Override state management (st.session_state override map; slot click events via SVG interaction or st.button workaround; persist across rerenders)
-- [ ] 10-02: Cascade recalculation trigger (on override change, call simulate_bracket() with updated override map; update bracket JSON in session state)
-- [ ] 10-03: UI feedback for overrides (visually distinguish overridden slots from model-predicted slots; show original model prediction alongside override)
-- [ ] 10-04: Reset functionality (clear override map from session state; re-run simulation with empty override; restore all downstream predictions)
-- [ ] 10-05: End-to-end override integration test (manually override a Round of 64 result; verify all 6 downstream rounds update correctly for the affected region)
+- [ ] 10-01-PLAN.md — Override pipeline wiring (add override_map param to cached simulation functions with hash_funcs cache invalidation; session_state init; wire through app.py)
+- [ ] 10-02-PLAN.md — Override controls + SVG visual feedback (per-slot selectbox dropdowns grouped by round in expanders; amber highlight for overridden slots; reset button; full app.py integration)
+- [ ] 10-03-PLAN.md — End-to-end verification (pytest override cascade tests; human verification of Streamlit UI with working overrides, reset, and session persistence)
 
 ---
 
@@ -288,4 +286,4 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
 | 8. Feature Store | 4/4 | ✓ Complete | 2026-03-04 |
 | 9. Bracket Visualization UI | 4/4 | ✓ Complete | 2026-03-04 |
-| 10. Interactive Override UI | 0/5 | Not started | - |
+| 10. Interactive Override UI | 0/3 | Not started | - |
