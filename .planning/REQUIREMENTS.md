@@ -28,8 +28,8 @@
 
 ### Backtesting
 
-- [ ] **BACK-01**: Backtest model against 2025 tournament using in-repo results data
-- [ ] **BACK-02**: Multi-year holdout validation across 2022–2025 (chalk + upset-heavy years)
+- [x] **BACK-01**: Backtest model against 2025 tournament using in-repo results data
+- [x] **BACK-02**: Multi-year holdout validation across 2022–2025 (chalk + upset-heavy years)
 - [ ] **BACK-03**: Model comparison dashboard showing baseline vs ensemble performance
 
 ### Web UI
@@ -81,8 +81,8 @@
 | SIML-02 | Phase 4 | Complete |
 | SIML-03 | Phase 4 | Complete |
 | SIML-04 | Phase 4 | Complete |
-| BACK-01 | Phase 5 | Pending |
-| BACK-02 | Phase 5 | Pending |
+| BACK-01 | Phase 5 | Complete |
+| BACK-02 | Phase 5 | Complete |
 | MODL-02 | Phase 6 | Pending |
 | BACK-03 | Phase 7 | Pending |
 | WEBU-01 | Phase 9 | Pending |
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-04 after Phase 4 completion — SIML-01, SIML-02, SIML-03, SIML-04 marked Complete*
+*Last updated: 2026-03-04 after Phase 5 completion — BACK-01, BACK-02 marked Complete*

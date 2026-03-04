@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
 - [x] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
 - [x] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
-- [ ] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
+- [x] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
 - [ ] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
 - [ ] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
 - [ ] **Phase 8: Feature Store** - Formalize the feature computation layer with a tested API, VIF analysis, and verified cutoff-date enforcement for historical replay
@@ -137,14 +137,12 @@ Plans:
   3. The multi-year backtest covers distinct variance profiles: 2022 (Saint Peter's Elite Eight), 2023 (FAU Final Four), 2024 (NC State run), and 2025 (all-chalk Final Four) are all represented with individual-year scores
   4. Backtest results are written to `backtest/results.json` and can be reproduced identically by re-running the harness
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: Historical snapshot isolation (per-year data cutoff enforcement; verify 2025 stats do not bleed into 2024 test fold)
-- [ ] 05-02: Backtest orchestration loop (iterate years; load snapshot stats; run feature computation; run model; run simulator; score against known results)
-- [ ] 05-03: Scoring metrics (per-round accuracy, ESPN-style bracket score, Brier score per game, log-loss, upset detection rate)
-- [ ] 05-04: Multi-year results table (aggregate into comparison table; write to backtest/results.json; print summary)
-- [ ] 05-05: BACK-01 validation (specifically score 2025 tournament and confirm model output against in-repo 2025 results data)
+- [x] 05-01-PLAN.md — Scoring helpers: actual slot winners, ESPN bracket scoring, game-level metrics
+- [x] 05-02-PLAN.md — Backtest orchestration: per-year model refit, bracket simulation, JSON output
+- [x] 05-03-PLAN.md — Validation: temporal isolation, 2025 verification (BACK-01), reproducibility
 
 ---
 
@@ -287,7 +285,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 2. Current Season and Bracket Data | 2/2 | ✓ Complete | 2026-03-03 |
 | 3. Baseline Model and Temporal Validation | 4/4 | ✓ Complete | 2026-03-04 |
 | 4. Bracket Simulator | 6/6 | ✓ Complete | 2026-03-04 |
-| 5. Backtesting Harness | 0/5 | Not started | - |
+| 5. Backtesting Harness | 3/3 | ✓ Complete | 2026-03-04 |
 | 6. Ensemble Models | 0/5 | Not started | - |
 | 7. Model Comparison Dashboard | 0/3 | Not started | - |
 | 8. Feature Store | 0/5 | Not started | - |
