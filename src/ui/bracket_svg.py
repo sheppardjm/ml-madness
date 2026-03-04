@@ -26,6 +26,8 @@ BG_COLOR = "#0e1117"
 BOX_FILL_NORMAL = "#1a1a2e"
 BOX_FILL_CHAMPION = "#1e5a3a"
 BOX_STROKE = "#4a90d9"
+BOX_FILL_OVERRIDDEN = "#2d1f00"    # dark amber background for manual overrides
+BOX_STROKE_OVERRIDDEN = "#f5a623"  # bright amber border for manual overrides
 TEXT_WINNER = "#ffffff"
 TEXT_LOSER = "#666666"
 TEXT_PROB = "#4ec9b0"
@@ -125,6 +127,7 @@ def _svg_game_box(
     weak_id: int | None,
     win_prob: float,
     is_champion: bool,
+    is_overridden: bool = False,
 ) -> str:
     """Build an SVG <g> group for a single game box.
 
@@ -133,6 +136,7 @@ def _svg_game_box(
     - Two text rows (strong team top, weak team bottom)
     - Winner row highlighted in white, loser dimmed
     - Win probability shown on winner's row (right-aligned)
+    - Amber fill/stroke when slot is a manual override
 
     Args:
         x, y, w, h:    Box position and size.
@@ -144,13 +148,25 @@ def _svg_game_box(
         strong_id:     team_id of the StrongSeed team.
         weak_id:       team_id of the WeakSeed team.
         win_prob:      Win probability for the winner (0-1 float).
-        is_champion:   If True, use champion box fill color.
+        is_champion:   If True, use champion box fill color (green).
+        is_overridden: If True, use amber fill/stroke to indicate manual override.
+                       Takes priority over is_champion so overridden championship
+                       slots show amber rather than green.
 
     Returns:
         SVG <g> element string.
     """
     row_h = h // 2
-    fill = BOX_FILL_CHAMPION if is_champion else BOX_FILL_NORMAL
+    # Override visual takes priority: amber > champion > normal
+    if is_overridden:
+        fill = BOX_FILL_OVERRIDDEN
+        stroke_color = BOX_STROKE_OVERRIDDEN
+    elif is_champion:
+        fill = BOX_FILL_CHAMPION
+        stroke_color = BOX_STROKE
+    else:
+        fill = BOX_FILL_NORMAL
+        stroke_color = BOX_STROKE
     prob_str = f"{win_prob:.1%}"
 
     # Determine which row is winner
@@ -203,10 +219,10 @@ def _svg_game_box(
         f'<g>',
         # Box background
         (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
-         f'rx="2" ry="2" fill="{fill}" stroke="{BOX_STROKE}" stroke-width="1"/>'),
+         f'rx="2" ry="2" fill="{fill}" stroke="{stroke_color}" stroke-width="1"/>'),
         # Divider line between rows
         (f'<line x1="{x}" y1="{y + row_h}" x2="{x + w}" y2="{y + row_h}" '
-         f'stroke="{BOX_STROKE}" stroke-width="0.5" opacity="0.4"/>'),
+         f'stroke="{stroke_color}" stroke-width="0.5" opacity="0.4"/>'),
         # Strong seed row text
         (f'<text x="{text_x}" y="{strong_y}" '
          f'font-family="{FONT_FAMILY}" font-size="{FONT_SIZE_TEAM}" '
@@ -381,6 +397,7 @@ def render_bracket_svg_string(
         slot_sim = det_slots.get(slot_id, {})
         winner_id: int | None = slot_sim.get("team_id")
         win_prob: float = slot_sim.get("win_prob", 0.5)
+        is_overridden: bool = slot_sim.get("overridden", False)
 
         # Resolve competing teams
         strong_id, weak_id = _resolve_slot_teams(
@@ -416,6 +433,7 @@ def render_bracket_svg_string(
             weak_id=weak_id,
             win_prob=win_prob,
             is_champion=is_champion,
+            is_overridden=is_overridden,
         ))
 
     # --- Region and center labels ---
