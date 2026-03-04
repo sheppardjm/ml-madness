@@ -346,3 +346,10 @@ def print_comparison_table(models_data: dict[str, dict[str, Any]]) -> None:
 if __name__ == "__main__":
     data = load_comparison_data()
     print_comparison_table(data)
+
+    # Generate visualizations (imported inside __main__ to keep matplotlib out
+    # of module-level imports; callers using `from src.dashboard.compare import
+    # load_comparison_data` will not pay the matplotlib import cost)
+    from src.dashboard.plots import plot_per_round_accuracy, plot_brier_heatmap
+    plot_per_round_accuracy(data)
+    plot_brier_heatmap(data)
