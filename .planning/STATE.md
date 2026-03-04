@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-01 complete (bracket_schema.py)
+**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-02 complete (simulate_bracket deterministic mode)
 
 ## Current Position
 
 Phase: 4 of 10 (Bracket Simulator) — In progress
-Plan: 1 of 6 in phase 04
-Status: 04-01 complete — bracket_schema.py with slot tree, seedings, predict_fn
-Last activity: 2026-03-04 — Completed 04-01-PLAN.md (bracket schema foundational module)
+Plan: 2 of 6 in phase 04
+Status: 04-02 complete — simulate_bracket() with deterministic mode, all 67 slots filled
+Last activity: 2026-03-04 — Completed 04-02-PLAN.md (simulate_bracket deterministic mode)
 
-Progress: [█████░░░░░] 37% (11/30 plans estimated)
+Progress: [█████░░░░░] 40% (12/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,10 +30,10 @@ Progress: [█████░░░░░] 37% (11/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
-| 04-bracket-simulator | 1 (in progress) | ~2 min | ~2 min |
+| 04-bracket-simulator | 2 (in progress) | ~5 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (~12 min), 03-02 (~3 min), 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min)
+- Last 5 plans: 03-02 (~3 min), 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -87,6 +87,10 @@ Recent decisions affecting current work:
 - [04-01]: build_predict_fn returns (predict_fn, stats_lookup) tuple so 04-04 score_predictor can access stats without re-loading
 - [04-01]: predict_fn closure captures season at build time — caller must pass correct season to build_predict_fn()
 - [04-01]: Topological ordering key: slot_round_number() returns 0 for FF, int(slot_id[1]) for R-prefixed — valid for Kaggle R1-R6 convention
+- [04-02]: simulate_bracket() signature accepts all future-mode params (n_runs, seed, override_map, stats_lookup) as no-ops in deterministic mode — preserves API stability when monte_carlo added in 04-03
+- [04-02]: build_stats_lookup() overlay fix: current_season_stats.parquet overlaid on historical 2025 data (not replacing all of it) — First Four teams absent from cbbdata fall back to historical_torvik_ratings snapshot
+- [04-02]: Bracket JSON contract finalized: {mode, season, slots: {slot_id: {team_id, win_prob, round}}, champion: {team_id, win_prob}} — all values native Python types for JSON serialization
+- [04-02]: 2025 deterministic bracket champion: team_id=1222, win_prob=0.5425 (championship game)
 
 ### Pending Todos
 
@@ -110,6 +114,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:20:18Z
-Stopped at: Completed 04-01-PLAN.md — bracket_schema.py foundational module
+Last session: 2026-03-04T03:30:00Z
+Stopped at: Completed 04-02-PLAN.md — simulate_bracket() deterministic mode
 Resume file: None
