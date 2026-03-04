@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 5 COMPLETE — backtesting harness; all 3 plans done (05-01 scoring, 05-02 orchestration, 05-03 validation). Phase 6 (ensemble model) is next.
+**Current focus:** Phase 6 (ensemble models) in progress — 06-01 (XGBoost) and 06-02 (LightGBM) complete (wave 1). Wave 2 (neural network, stacking ensemble) is next.
 
 ## Current Position
 
-Phase: 5 of 10 (Backtesting Harness) — COMPLETE
-Plan: 3 of 3 in phase 05
-Status: 05-03 complete — validate_phase5() confirms 4/4 criteria: temporal isolation, Brier match, coverage, reproducibility
-Last activity: 2026-03-03 — Completed 05-03-PLAN.md (Phase 5 validation)
+Phase: 6 of 10 (Ensemble Models) — In progress
+Plan: 2 of 5 in phase 06
+Status: 06-02 complete — LightGBM Optuna sweep, best Brier=0.1931 (num_leaves=12), lgb_params.json saved
+Last activity: 2026-03-04 — Completed 06-02-PLAN.md (LightGBM training pipeline)
 
-Progress: [████████░░] 63% (19/30 plans estimated)
+Progress: [████████░░] 67% (20/30 plans estimated)
 
 ## Performance Metrics
 
@@ -32,10 +32,11 @@ Progress: [████████░░] 63% (19/30 plans estimated)
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
 | 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
 | 05-backtesting-harness | 3 (complete) | ~7 min | ~2.3 min |
+| 06-ensemble-models | 2 so far | ~4 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min), 05-02 (~3 min), 05-03 (~2 min)
-- Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
+- Last 5 plans: 05-01 (~2 min), 05-02 (~3 min), 05-03 (~2 min), 06-01 (~2 min), 06-02 (~2 min)
+- Trend: Well-scoped plans with clear prior context execute in 2-5 min; library compat issues resolved quickly
 
 *Updated after each plan completion*
 
@@ -120,6 +121,10 @@ Recent decisions affecting current work:
 - [05-03]: validate_phase5() confirms 4/4 criteria: temporal isolation assert (max train season=2024), Brier delta=0 vs evaluation_results.json, all 4 BACKTEST_YEARS present with dynamic upset counts, re-run reproducibility (0 differences)
 - [05-03]: 2025 ESPN score=1200 in [1100,1300]; all 4 top #1 seeds reached Final Four, championship missed -- BACK-01 PASS
 - [05-03]: Variable shadowing guard: inner loop variables must not reuse outer counter names (total, passed) -- silent correctness bug in display; renamed to r_correct/r_total
+- [06-02]: LightGBM mean Brier=0.1931 vs LR baseline 0.1900 (+0.0031 delta) -- expected; individual GB models often slightly underperform logistic on small datasets; ensemble diversity is the goal
+- [06-02]: Optuna found num_leaves=12 (far below max 60) -- confirms small dataset needs very shallow trees; complexity constraint was correct
+- [06-02]: class_weight='balanced' for LightGBM (not scale_pos_weight which is XGBoost); verbose=-1 for LightGBM (not verbosity=0 which is XGBoost)
+- [06-02]: arm64 libomp fix: Intel Homebrew at /usr/local has x86_64 libomp; arm64 Python (uv-managed) needs arm64 libomp; solution: copy from Adobe Acrobat's bundled arm64 libomp to /Users/Sheppardjm/.local/share/uv/python/cpython-3.12.12-macos-aarch64-none/lib/libomp.dylib
 
 ### Pending Todos
 
@@ -143,6 +148,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T04:54:05Z
-Stopped at: Completed 05-03-PLAN.md — Phase 5 validation (validate_phase5(), 4/4 criteria PASS)
+Last session: 2026-03-04T05:44:30Z
+Stopped at: Completed 06-02-PLAN.md — LightGBM Optuna sweep pipeline (mean Brier=0.1931, lgb_params.json saved)
 Resume file: None
