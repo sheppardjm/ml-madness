@@ -211,14 +211,12 @@ Plans:
   3. Calling `compute_features(..., as_of_date=selection_sunday_2025)` returns only stats available before that date — confirmed by asserting no post-Selection-Sunday games are included
   4. Swapping team A and team B inverts the differential signs and produces P(B beats A) = 1 - P(A beats B) when passed through any trained model (perspective symmetry test)
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 08-01: Feature function API definition (type signatures, docstring, return schema; register as the canonical interface for all models)
-- [ ] 08-02: Efficiency differential computation (adjOE, adjDE, barthag, tempo from cbbdata; seed differential from bracket data)
-- [ ] 08-03: Strength of schedule and recent form (SOS from CBBpy game logs; last-N-games win rate as recency weight; season-bounded only)
-- [ ] 08-04: VIF analysis (compute VIF on full feature matrix; drop or combine any feature above threshold; document final feature set)
-- [ ] 08-05: Unit tests and perspective symmetry (pytest suite; known historical matchup fixtures; symmetry assertion)
+- [ ] 08-01-PLAN.md — Dependencies (pytest, statsmodels) + name-based compute_features() public API with team name resolution + rename internal function + update all call sites
+- [ ] 08-02-PLAN.md — VIF analysis module (compute VIF on full feature matrix with statsmodels; document barthag_diff exceedance with KEEP decision; write models/vif_report.json)
+- [ ] 08-03-PLAN.md — Pytest suite (known matchup fixtures, perspective symmetry, cutoff enforcement verification, VIF threshold tests; all SC-1 through SC-4 covered)
 
 ---
 
@@ -275,7 +273,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 Note: Phase 8 (Feature Store formalization) should be done in practice alongside Phase 3 but is formally gated on stable feature set after Phase 6. Phases 9 and 10 can begin once Phase 4's bracket JSON contract is stable.
 
@@ -288,6 +286,6 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 5. Backtesting Harness | 3/3 | ✓ Complete | 2026-03-04 |
 | 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
 | 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
-| 8. Feature Store | 0/5 | Not started | - |
+| 8. Feature Store | 0/3 | Not started | - |
 | 9. Bracket Visualization UI | 0/5 | Not started | - |
 | 10. Interactive Override UI | 0/5 | Not started | - |
