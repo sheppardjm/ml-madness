@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 6 COMPLETE — ensemble models; all 5 plans done. Ensemble beats baseline by 11% (Brier 0.1692 vs 0.1900). Criterion 4 (calibration 5pp) FAIL accepted — sparse bin variance. Phase 7 (model comparison dashboard) is next.
+**Current focus:** Phase 7 IN PROGRESS — model comparison dashboard. Plan 07-01 complete: dashboard module with formatted comparison table. Plans 07-02 (charts) and 07-03 (model selection) remain.
 
 ## Current Position
 
-Phase: 6 of 10 (Ensemble Models) — COMPLETE (user approved, criterion 4 FAIL accepted)
-Plan: 5 of 5 in phase 06
-Status: Phase 6 complete — verification 3/4 PASS, 1 FAIL (calibration threshold, accepted as sparse-bin variance)
-Last activity: 2026-03-04 — Phase 6 execution complete, all 5 plans + verification done
+Phase: 7 of 10 (Model Comparison Dashboard) — In progress
+Plan: 1 of 3 in phase 07 (07-01 complete)
+Status: In progress — 07-01 complete (dashboard module + comparison table)
+Last activity: 2026-03-04 — Completed 07-01-PLAN.md (dashboard module with comparison table)
 
-Progress: [████████░░] 77% (23/30 plans estimated)
+Progress: [████████░░] 80% (24/30 plans estimated)
 
 ## Performance Metrics
 
@@ -141,6 +141,9 @@ Recent decisions affecting current work:
 - [06-04]: backtest() routes to backtest/ensemble_results.json automatically when model='ensemble' and output_path is default -- preserves baseline results.json intact; both files coexist in backtest/
 - [06-05]: Phase 6 verification: Criterion 1 PASS (XGB=0.1908, LGB=0.1931, 4 folds each), Criterion 2 NOTE (TwoTierEnsemble functional; StackingClassifier incompatible with walk_forward_splits), Criterion 3 PASS (ensemble 0.1692 vs baseline 0.1900, -11%), Criterion 4 FAIL (max calibration deviation 0.1059 exceeds 5pp threshold; sparse OOF bins with 248 samples)
 - [06-05]: Calibration FAIL root cause: [0.3,0.4] bin has only 16/248 OOF samples; 4 wrong predictions produce -10.59pp deviation; quantile strategy also fails (0.1007); deferred to Phase 8 (feature store)
+- [07-01]: Dashboard module reads JSON artifacts only — zero ML imports in compare.py; load_comparison_data() is canonical data loader for Phase 7
+- [07-01]: Only baseline and ensemble in comparison table per plan spec — XGB/LGB excluded (no per-round bracket simulation data available from Phase 6 evaluate functions)
+- [07-01]: Upset detection tradeoff trend confirmed: ensemble deficit widens from -23.8pp (2022) to -36.4pp (2025) — ensemble becomes more conservative each year as it refines calibration
 
 ### Pending Todos
 
@@ -164,6 +167,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T06:09:39Z
-Stopped at: Completed 06-05-PLAN.md — Phase 6 verification; PARTIAL (3/4 criteria PASS/NOTE, Criterion 4 calibration FAIL); 06-VERIFICATION.md written
+Last session: 2026-03-04T06:35:28Z
+Stopped at: Completed 07-01-PLAN.md — dashboard module + comparison table; `uv run python -m src.dashboard.compare` prints formatted four-section table
 Resume file: None
