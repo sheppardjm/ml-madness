@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 7 IN PROGRESS — model comparison dashboard. Plans 07-01 (comparison table) and 07-02 (charts) complete. Plan 07-03 (model selection + selected.json) remains.
+**Current focus:** Phase 7 COMPLETE — model comparison dashboard done. models/selected.json written; ensemble selected (mean Brier=0.1692). Phase 8 (Feature Store) or Phase 9 (Streamlit UI) next.
 
 ## Current Position
 
-Phase: 7 of 10 (Model Comparison Dashboard) — In progress
-Plan: 2 of 3 in phase 07 (07-01, 07-02 complete)
-Status: In progress — 07-02 complete (matplotlib bar chart + Brier heatmap)
-Last activity: 2026-03-04 — Completed 07-02-PLAN.md (visualization charts)
+Phase: 7 of 10 (Model Comparison Dashboard) — COMPLETE
+Plan: 3 of 3 in phase 07 (07-01, 07-02, 07-03 all complete)
+Status: Phase 7 complete — 07-03 written models/selected.json with ensemble as winning model
+Last activity: 2026-03-04 — Completed 07-03-PLAN.md (model selection + selected.json artifact)
 
-Progress: [████████░░] 83% (25/30 plans estimated)
+Progress: [█████████░] 87% (26/30 plans estimated)
 
 ## Performance Metrics
 
@@ -147,6 +147,9 @@ Recent decisions affecting current work:
 - [07-02]: matplotlib.use("Agg") must be set before pyplot import for headless CLI chart generation; pattern established in plots.py
 - [07-02]: Plot imports placed inside __main__ block (not module top-level) to avoid slow matplotlib load when compare.py is imported as a library — preserves zero-ML-import design from 07-01
 - [07-02]: Heatmap vmin=0.12, vmax=0.25 hard-coded for consistent color scale across runs; covers observed Brier range [0.136, 0.193]
+- [07-03]: XGB and LGB Brier scores hard-coded as constants (0.1908, 0.1931) — no standalone bracket-level JSON artifacts exist for those models; only baseline and ensemble have backtest/*.json files
+- [07-03]: select_best_model() uses round(mean_brier, 4) before min() comparison to avoid floating point noise affecting winner selection
+- [07-03]: Phase 9 artifact loading pattern: load models/selected.json -> read model_artifact_path -> joblib.load() to get TwoTierEnsemble instance
 
 ### Pending Todos
 
@@ -170,6 +173,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T06:38:46Z
-Stopped at: Completed 07-02-PLAN.md — visualization charts; `uv run python -m src.dashboard.compare` now prints table + saves models/per_round_comparison.png and models/brier_heatmap.png
+Last session: 2026-03-04T06:46:00Z
+Stopped at: Completed 07-03-PLAN.md — model selection artifact; `uv run python -m src.dashboard.compare` produces table + 2 PNGs + models/selected.json (ensemble, mean Brier=0.1692)
 Resume file: None
