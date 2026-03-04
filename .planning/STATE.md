@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 6 (ensemble models) in progress — 06-01 through 06-04 complete. Central question answered: ensemble beats logistic baseline. 06-05 (final model selection/packaging) is next.
+**Current focus:** Phase 6 (ensemble models) COMPLETE — all 5 plans done. Ensemble beats baseline by 11% (Brier 0.1692 vs 0.1900). Phase 7 (model comparison dashboard) is next.
 
 ## Current Position
 
-Phase: 6 of 10 (Ensemble Models) — In progress
-Plan: 4 of 5 in phase 06 (06-04 complete with SUMMARY)
-Status: 06-04 complete — Ensemble backtest (2022-2025) runs; mean Brier=0.1692 vs baseline 0.1900 (-11% relative); ensemble_results.json written
-Last activity: 2026-03-04 — Completed 06-04-PLAN.md (ensemble backtest)
+Phase: 6 of 10 (Ensemble Models) — Phase complete
+Plan: 5 of 5 in phase 06 (06-05 complete with SUMMARY)
+Status: 06-05 complete — Phase 6 verification: Criterion 1 PASS, Criterion 2 NOTE, Criterion 3 PASS, Criterion 4 FAIL (max calibration deviation 0.1059 exceeds 5pp threshold; honest FAIL documented)
+Last activity: 2026-03-04 — Completed 06-05-PLAN.md (phase 6 verification)
 
-Progress: [████████░░] 73% (22/30 plans estimated)
+Progress: [████████░░] 77% (23/30 plans estimated)
 
 ## Performance Metrics
 
@@ -139,6 +139,8 @@ Recent decisions affecting current work:
 - [06-04]: fold_scaler.transform() called by predict_fn caller; TwoTierEnsemble.predict_proba() receives already-scaled input (no double-scaling) -- this is the canonical call pattern for ensemble inference
 - [06-04]: Ensemble backtest (2022-2025) mean Brier=0.1692 vs baseline 0.1900 (-0.0208 delta, -11% relative) -- ENSEMBLE WINS; per-year: 2022=0.1793, 2023=0.1850, 2024=0.1760, 2025=0.1364
 - [06-04]: backtest() routes to backtest/ensemble_results.json automatically when model='ensemble' and output_path is default -- preserves baseline results.json intact; both files coexist in backtest/
+- [06-05]: Phase 6 verification: Criterion 1 PASS (XGB=0.1908, LGB=0.1931, 4 folds each), Criterion 2 NOTE (TwoTierEnsemble functional; StackingClassifier incompatible with walk_forward_splits), Criterion 3 PASS (ensemble 0.1692 vs baseline 0.1900, -11%), Criterion 4 FAIL (max calibration deviation 0.1059 exceeds 5pp threshold; sparse OOF bins with 248 samples)
+- [06-05]: Calibration FAIL root cause: [0.3,0.4] bin has only 16/248 OOF samples; 4 wrong predictions produce -10.59pp deviation; quantile strategy also fails (0.1007); deferred to Phase 8 (feature store)
 
 ### Pending Todos
 
@@ -162,6 +164,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T06:04:47Z
-Stopped at: Completed 06-04-PLAN.md — Ensemble backtest (2022-2025); mean Brier=0.1692 vs baseline 0.1900 (-11%); ensemble_results.json written
+Last session: 2026-03-04T06:09:39Z
+Stopped at: Completed 06-05-PLAN.md — Phase 6 verification; PARTIAL (3/4 criteria PASS/NOTE, Criterion 4 calibration FAIL); 06-VERIFICATION.md written
 Resume file: None
