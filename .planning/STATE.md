@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 9 (Bracket Visualization UI) verified and complete — 4/4 plans done, 4/4 success criteria verified. Ready for Phase 10 (Interactive Override UI).
+**Current focus:** Phase 10 (Interactive Override UI) — Plan 10-01 complete; override_map pipeline wired from session_state through cache layer into simulate_bracket().
 
 ## Current Position
 
-Phase: 9 of 10 (Bracket Visualization UI) — Verified Complete
-Plan: 4 of 4 in phase 09 (all complete, verified)
-Status: Phase 9 verified — 4/4 must-haves pass, SVG bracket + advancement table + champion panel all functional
-Last activity: 2026-03-04 — Phase 9 execution + verification complete
+Phase: 10 of 10 (Interactive Override UI) — In Progress
+Plan: 1 of N in phase 10 (10-01 complete)
+Status: Plan 10-01 complete — override_map pipeline wired (session_state -> cache -> simulate_bracket)
+Last activity: 2026-03-04 — Completed 10-01-PLAN.md
 
-Progress: [██████████] 100% (33/33 plans estimated)
+Progress: [█████████░] ~90% (34/~37 plans estimated)
 
 ## Performance Metrics
 
@@ -172,6 +172,9 @@ Recent decisions affecting current work:
 - [09-04]: build_advancement_df() iterates all_team_ids (not advancement_probs.keys()) for LEFT JOIN pattern -- ensures First Four losers appear with 0.0% probabilities (research pitfall 4)
 - [09-04]: column_config["SeedNum"] = None hides SeedNum from st.dataframe display while keeping it in DataFrame for default sort order
 - [09-04]: get_round_column_config() uses deferred import of streamlit inside function body -- module safe to import outside Streamlit context
+- [10-01]: override_map uses regular (non-underscore) parameter naming so Streamlit includes it in cache key; hash_funcs={dict: lambda d: str(sorted(d.items()))} handles dict hashing
+- [10-01]: Empty dict normalized to None via 'override_map or None' before passing to simulate_bracket() — avoids unnecessary validator overhead when no overrides exist (research pitfall 4)
+- [10-01]: Sidebar override count display: st.warning(f"{len(override_map)} manual override(s) active") shown when override_map is non-empty
 
 ### Pending Todos
 
@@ -195,6 +198,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:22:26Z
-Stopped at: Completed 09-04-PLAN.md — Advancement Probabilities table with ProgressColumn; Phase 9 complete (all 4/4 plans done)
+Last session: 2026-03-04T16:53:53Z
+Stopped at: Completed 10-01-PLAN.md — override_map pipeline wired from session_state through data_loader cached functions into simulate_bracket()
 Resume file: None
