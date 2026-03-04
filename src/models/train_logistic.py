@@ -24,6 +24,7 @@ import joblib
 import numpy as np
 import optuna
 import sklearn
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss
 from sklearn.preprocessing import StandardScaler
@@ -76,7 +77,11 @@ def run_optuna_sweep(df: "pd.DataFrame", n_trials: int = 50) -> float:
             )
             clf.fit(X_train_scaled, y_train)
 
-            y_prob = clf.predict_proba(X_test_scaled)[:, 1]
+            # Post-hoc isotonic calibration on training data to compress extremes
+            calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
+            calibrated_clf.fit(X_train_scaled, y_train)
+
+            y_prob = calibrated_clf.predict_proba(X_test_scaled)[:, 1]
             fold_brier_scores.append(brier_score_loss(y_test, y_prob))
 
         return float(np.mean(fold_brier_scores))
@@ -135,16 +140,22 @@ def train_and_save(
     )
     clf.fit(X_scaled, y)
 
+    # Post-hoc isotonic calibration — compresses extreme probabilities
+    calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
+    calibrated_clf.fit(X_scaled, y)
+
     # Create output directory if needed
     pathlib.Path(model_path).parent.mkdir(parents=True, exist_ok=True)
 
     artifact = {
         "model": clf,
+        "calibrator": calibrated_clf,
         "scaler": scaler,
         "feature_names": FEATURE_COLS,
         "train_seasons": sorted(df["Season"].unique().tolist()),
         "best_C": best_C,
         "sklearn_version": sklearn.__version__,
+        "calibration_method": "isotonic",
     }
     joblib.dump(artifact, model_path)
 
@@ -152,6 +163,7 @@ def train_and_save(
     print(f"  Training games: {len(df)}")
     print(f"  Training seasons: {artifact['train_seasons']}")
     print(f"  Best C: {best_C:.6f}")
+    print(f"  Calibration method: {artifact['calibration_method']}")
     print(f"  sklearn version: {sklearn.__version__}")
     print(f"\nCoefficients (feature -> coefficient):")
     for name, coef in zip(FEATURE_COLS, clf.coef_[0]):
@@ -195,7 +207,15 @@ def load_model(
     else:
         print(f"Model loaded (sklearn {current_version})")
 
-    return artifact["model"], artifact["scaler"], artifact["feature_names"]
+    # Return calibrated model if available — calibrator compresses extreme probabilities
+    model = artifact.get("calibrator", artifact["model"])
+    if "calibrator" not in artifact:
+        print("WARNING: Artifact has no calibrator — using raw model")
+    else:
+        cal_method = artifact.get("calibration_method", "unknown")
+        print(f"Using calibrated model (method={cal_method})")
+
+    return model, artifact["scaler"], artifact["feature_names"]
 
 
 def predict_matchup(

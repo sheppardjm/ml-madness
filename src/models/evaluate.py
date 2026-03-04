@@ -28,7 +28,7 @@ matplotlib.use("Agg")  # Non-interactive backend for saving to file
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.calibration import CalibrationDisplay, calibration_curve
+from sklearn.calibration import CalibratedClassifierCV, CalibrationDisplay, calibration_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import brier_score_loss, log_loss
 from sklearn.preprocessing import StandardScaler
@@ -118,8 +118,12 @@ def evaluate_all_holdout_years(
         )
         clf.fit(X_train_scaled, y_train)
 
-        # Predict probabilities on holdout test set
-        y_prob = clf.predict_proba(X_test_scaled)[:, 1]
+        # Post-hoc isotonic calibration — compresses extreme probabilities
+        calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
+        calibrated_clf.fit(X_train_scaled, y_train)
+
+        # Predict calibrated probabilities on holdout test set
+        y_prob = calibrated_clf.predict_proba(X_test_scaled)[:, 1]
         y_pred_class = (y_prob >= 0.5).astype(int)
 
         # Compute all metrics
@@ -327,10 +331,14 @@ def check_top_seed_overconfidence(
     )
     clf.fit(X_all_scaled, y_all)
 
-    # Predict probabilities for top-seed matchups
+    # Post-hoc isotonic calibration — compresses extreme probabilities
+    calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
+    calibrated_clf.fit(X_all_scaled, y_all)
+
+    # Predict calibrated probabilities for top-seed matchups
     X_top = top_seed_df[FEATURE_COLS].values
     X_top_scaled = scaler.transform(X_top)
-    y_prob_top = clf.predict_proba(X_top_scaled)[:, 1]
+    y_prob_top = calibrated_clf.predict_proba(X_top_scaled)[:, 1]
 
     max_prob = float(y_prob_top.max())
     min_prob = float(y_prob_top.min())
