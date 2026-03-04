@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 5 IN PROGRESS — backtesting harness; 05-01 (scoring helpers) complete, ready for 05-02 (orchestration loop)
+**Current focus:** Phase 5 IN PROGRESS — backtesting harness; 05-02 (orchestration loop) complete, ready for 05-03 (comparison report)
 
 ## Current Position
 
 Phase: 5 of 10 (Backtesting Harness) — In progress
-Plan: 1 of 3 in phase 05
-Status: 05-01 complete — backtest scoring module: build_actual_slot_winners(), score_bracket(), compute_game_metrics() verified
-Last activity: 2026-03-04 — Completed 05-01-PLAN.md (backtest scoring helpers)
+Plan: 2 of 3 in phase 05
+Status: 05-02 complete — backtest() orchestrator: per-year refitting, bracket simulation, scoring, results.json
+Last activity: 2026-03-04 — Completed 05-02-PLAN.md (backtest orchestration loop)
 
-Progress: [███████░░░] 57% (17/30 plans estimated)
+Progress: [████████░░] 60% (18/30 plans estimated)
 
 ## Performance Metrics
 
@@ -31,10 +31,10 @@ Progress: [███████░░░] 57% (17/30 plans estimated)
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
 | 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
-| 05-backtesting-harness | 1 so far | ~2 min | ~2 min |
+| 05-backtesting-harness | 2 so far | ~5 min | ~2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (~2 min), 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min)
+- Last 5 plans: 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min), 05-02 (~3 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -113,6 +113,10 @@ Recent decisions affecting current work:
 - [05-01]: score_bracket() normalizes predicted_slots to handle both flat {slot_id: team_id} and nested {slot_id: {'team_id': ...}} formats (simulate_bracket() output is nested)
 - [05-01]: compute_game_metrics() uses batch scaler.transform() + predict_proba() -- not per-game predict_fn calls; 4-arg form (test_df, feature_cols, scaler, calibrated_clf)
 - [05-01]: ESPN_ROUND_POINTS = {1:10, 2:20, 3:40, 4:80, 5:160, 6:320}; ESPN_MAX_SCORE = 1920; First Four (round 0) not scored
+- [05-02]: backtest() uses make_predict_fn() factory with default-arg binding to prevent late-binding Python closure bug (all folds sharing last loop's scaler/clf)
+- [05-02]: backtest() extracts only best_C from artifact dict; artifact scaler/model never used for predictions -- each fold re-fits from scratch on Season < test_year
+- [05-02]: predict_fn returns 0.5 on KeyError -- handles First Four play-in teams absent from cbbdata stats snapshot
+- [05-02]: backtest/results.json verified reproducible: mean_brier=0.1900, mean_ESPN=912.5, 2024=62 games, 2025=60 games (matches evaluation_results.json)
 
 ### Pending Todos
 
@@ -136,6 +140,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T04:42:58Z
-Stopped at: Completed 05-01-PLAN.md — backtest scoring helpers (build_actual_slot_winners, score_bracket, compute_game_metrics)
+Last session: 2026-03-04T04:48:27Z
+Stopped at: Completed 05-02-PLAN.md — backtest orchestration loop (backtest(), make_predict_fn(), results.json)
 Resume file: None
