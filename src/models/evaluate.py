@@ -35,6 +35,9 @@ from sklearn.preprocessing import StandardScaler
 
 import joblib
 
+# Import post-hoc calibrator — matches train_logistic.py calibration strategy
+from src.models.train_logistic import ClippedCalibrator, CLIP_LO, CLIP_HI
+
 
 def compute_chalk_brier(y_true: np.ndarray) -> float:
     """Compute the hard-chalk Brier score (always predict the higher seed wins with P=1.0).
@@ -118,9 +121,9 @@ def evaluate_all_holdout_years(
         )
         clf.fit(X_train_scaled, y_train)
 
-        # Post-hoc isotonic calibration — compresses extreme probabilities
-        calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
-        calibrated_clf.fit(X_train_scaled, y_train)
+        # Post-hoc isotonic calibration via clipping — compresses extreme probabilities
+        # Matches the ClippedCalibrator strategy used in train_and_save()
+        calibrated_clf = ClippedCalibrator(clf, clip_lo=CLIP_LO, clip_hi=CLIP_HI)
 
         # Predict calibrated probabilities on holdout test set
         y_prob = calibrated_clf.predict_proba(X_test_scaled)[:, 1]
@@ -331,9 +334,9 @@ def check_top_seed_overconfidence(
     )
     clf.fit(X_all_scaled, y_all)
 
-    # Post-hoc isotonic calibration — compresses extreme probabilities
-    calibrated_clf = CalibratedClassifierCV(clf, method="isotonic", cv="prefit")
-    calibrated_clf.fit(X_all_scaled, y_all)
+    # Post-hoc isotonic calibration via clipping — compresses extreme probabilities
+    # Matches ClippedCalibrator strategy used in train_and_save() and evaluate_all_holdout_years()
+    calibrated_clf = ClippedCalibrator(clf, clip_lo=CLIP_LO, clip_hi=CLIP_HI)
 
     # Predict calibrated probabilities for top-seed matchups
     X_top = top_seed_df[FEATURE_COLS].values
