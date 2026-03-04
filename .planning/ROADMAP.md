@@ -156,7 +156,7 @@ Plans:
 
 **Success Criteria** (what must be TRUE):
   1. XGBoost and LightGBM models are trained with the same walk-forward temporal splits as the baseline, and their individual Brier scores are logged alongside the baseline for comparison
-  2. A scikit-learn StackingClassifier combines XGBoost, LightGBM, and logistic regression with logistic regression as the meta-learner, and a single `ensemble.predict_proba()` call returns calibrated win probabilities
+  2. A stacking ensemble combines XGBoost, LightGBM, and logistic regression with logistic regression as the meta-learner, and a single `ensemble.predict_proba()` call returns calibrated win probabilities (NOTE: uses manual OOF temporal stacking via TwoTierEnsemble, not sklearn StackingClassifier, because StackingClassifier's cross_val_predict raises ValueError with non-partition walk-forward splits — see sklearn GitHub issue #32614)
   3. The ensemble achieves a lower multi-year Brier score than the logistic regression baseline alone on the 2022–2025 holdout set
   4. Calibration curves for the ensemble show predicted probabilities within 5 percentage points of actual win rates across decile bins
 
@@ -165,7 +165,7 @@ Plans:
 Plans:
 - [ ] 06-01: XGBoost model training (optuna hyperparameter search; temporal CV; log Brier score and log-loss per year)
 - [ ] 06-02: LightGBM model training (optuna hyperparameter search; temporal CV; log Brier score and log-loss per year)
-- [ ] 06-03: Stacking ensemble assembly (scikit-learn StackingClassifier; logistic regression meta-learner; temporal-aware cross_val_predict for training meta-learner)
+- [ ] 06-03: Stacking ensemble assembly (manual OOF temporal stacking via TwoTierEnsemble; logistic regression meta-learner; walk_forward_splits for OOF generation)
 - [ ] 06-04: Probability calibration (Platt scaling or isotonic regression on held-out calibration set; plot calibration curves before and after)
 - [ ] 06-05: Ensemble backtest run (re-run Phase 5 harness with ensemble predict function; update backtest/results.json with ensemble row)
 
@@ -286,7 +286,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 3. Baseline Model and Temporal Validation | 4/4 | ✓ Complete | 2026-03-04 |
 | 4. Bracket Simulator | 6/6 | ✓ Complete | 2026-03-04 |
 | 5. Backtesting Harness | 3/3 | ✓ Complete | 2026-03-04 |
-| 6. Ensemble Models | 0/5 | Not started | - |
+| 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
 | 7. Model Comparison Dashboard | 0/3 | Not started | - |
 | 8. Feature Store | 0/5 | Not started | - |
 | 9. Bracket Visualization UI | 0/5 | Not started | - |
