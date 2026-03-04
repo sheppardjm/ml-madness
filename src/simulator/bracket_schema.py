@@ -287,7 +287,7 @@ def build_predict_fn(
         FileNotFoundError: If model artifact does not exist.
     """
     from src.models.train_logistic import load_model, predict_matchup
-    from src.models.features import compute_features, build_stats_lookup
+    from src.models.features import _compute_features_by_id, build_stats_lookup
 
     # Load model artifact — returns (calibrator, scaler, feature_names)
     model, scaler, feature_names = load_model(model_path)
@@ -308,7 +308,7 @@ def build_predict_fn(
         Returns:
             Float in (0, 1): probability that team_a wins.
         """
-        features = compute_features(season, team_a_id, team_b_id, stats_lookup)
+        features = _compute_features_by_id(season, team_a_id, team_b_id, stats_lookup)
         return predict_matchup(features, model, scaler, feature_names)
 
     return predict_fn, stats_lookup

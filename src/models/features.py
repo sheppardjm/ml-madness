@@ -8,11 +8,17 @@ for supervised learning models.
 Feature computation is inline (dict-based lookup) rather than SQL for performance
 when iterating over thousands of matchups in walk-forward cross-validation.
 
-Exports:
-    FEATURE_COLS          - Ordered list of 6 feature column names
-    compute_features()    - Compute differential features for a single matchup
-    build_stats_lookup()  - Load all team/season stats into a fast lookup dict
+Public API:
+    FEATURE_COLS            - Ordered list of 6 feature column names
+    compute_features()      - Name-based public API: resolve team names to IDs,
+                              validate as_of_date, delegate to _compute_features_by_id()
+    build_stats_lookup()    - Load all team/season stats into a fast lookup dict
     build_matchup_dataset() - Assemble full training DataFrame from tournament games
+
+Internal (ID-based):
+    _compute_features_by_id() - Core feature computation using integer Kaggle team IDs
+    _resolve_team_id()         - Resolve team name string to kaggle_team_id
+    _get_name_lookup()         - Build/cache name -> kaggle_team_id mapping
 """
 
 from __future__ import annotations
@@ -23,6 +29,8 @@ from typing import Any
 
 import duckdb
 import pandas as pd
+
+from src.utils.cutoff_dates import SELECTION_SUNDAY_DATES
 
 # Ordered list of feature column names used throughout the modeling pipeline.
 # Team A is always the lower-seeded team (better seed = lower SeedNum).
@@ -42,14 +50,121 @@ FEATURE_COLS: list[str] = [
     "wab_diff",
 ]
 
+# ---------------------------------------------------------------------------
+# Team name lookup cache
+# ---------------------------------------------------------------------------
 
-def compute_features(
+# Module-level cache for team name -> kaggle_team_id mapping.
+# Populated lazily on first call to _get_name_lookup().
+_TEAM_NAME_LOOKUP: dict[str, int] | None = None
+
+
+def _get_name_lookup(
+    processed_dir: str | pathlib.Path = "data/processed",
+) -> dict[str, int]:
+    """Build or return the cached team name -> kaggle_team_id lookup.
+
+    Reads team_normalization.parquet and builds a dict mapping every known
+    name variant (canonical_name, kaggle_name, cbbdata_name) to kaggle_team_id.
+    Empty string values are skipped (espn_name has many empty strings per
+    decision [02-02]).
+
+    The result is cached in the module-level _TEAM_NAME_LOOKUP for performance.
+
+    Args:
+        processed_dir: Directory containing team_normalization.parquet.
+            Default: data/processed
+
+    Returns:
+        Dict mapping team name strings -> kaggle_team_id (int).
+    """
+    global _TEAM_NAME_LOOKUP
+
+    if _TEAM_NAME_LOOKUP is not None:
+        return _TEAM_NAME_LOOKUP
+
+    processed_path = pathlib.Path(processed_dir)
+    norm_parquet = processed_path / "team_normalization.parquet"
+
+    if not norm_parquet.exists():
+        raise FileNotFoundError(
+            f"team_normalization.parquet not found at {norm_parquet}. "
+            "Run Phase 1 team normalization ingestion first."
+        )
+
+    conn = duckdb.connect()
+    df = conn.execute(
+        f"SELECT kaggle_team_id, canonical_name, kaggle_name, cbbdata_name "
+        f"FROM read_parquet('{norm_parquet}') "
+        f"WHERE kaggle_team_id IS NOT NULL"
+    ).df()
+    conn.close()
+
+    lookup: dict[str, int] = {}
+    name_cols = ["canonical_name", "kaggle_name", "cbbdata_name"]
+
+    for row in df.itertuples(index=False):
+        team_id = int(row.kaggle_team_id)
+        for col in name_cols:
+            name = getattr(row, col)
+            # Skip None, NaN, or empty strings (espn_name has many empty strings)
+            if name and isinstance(name, str) and name.strip():
+                lookup[name] = team_id
+
+    _TEAM_NAME_LOOKUP = lookup
+    return lookup
+
+
+def _resolve_team_id(
+    name: str,
+    processed_dir: str | pathlib.Path = "data/processed",
+) -> int:
+    """Resolve a team name string to its kaggle_team_id.
+
+    Looks up the name in team_normalization.parquet across canonical_name,
+    kaggle_name, and cbbdata_name columns.
+
+    Args:
+        name: Team name string. Examples: "Duke", "UNC", "Michigan State",
+            "North Carolina", "Kansas", "Kentucky".
+        processed_dir: Directory containing team_normalization.parquet.
+            Default: data/processed
+
+    Returns:
+        Integer kaggle_team_id.
+
+    Raises:
+        ValueError: If name is not found in team_normalization.parquet.
+            Error message includes example valid team names.
+    """
+    lookup = _get_name_lookup(processed_dir)
+
+    if name in lookup:
+        return lookup[name]
+
+    raise ValueError(
+        f"Team name {name!r} not found in team_normalization.parquet. "
+        "Check canonical_name, kaggle_name, or cbbdata_name columns. "
+        "Example valid names: 'Duke', 'Michigan', 'Kansas', 'Kentucky', 'UNC'."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Internal ID-based feature computation (renamed from compute_features)
+# ---------------------------------------------------------------------------
+
+
+def _compute_features_by_id(
     season: int,
     team_a_id: int,
     team_b_id: int,
     stats_lookup: dict[tuple[int, int], dict[str, Any]],
 ) -> dict[str, float]:
-    """Compute differential efficiency features for a single matchup.
+    """Compute differential efficiency features for a single matchup using integer IDs.
+
+    Internal function used by build_matchup_dataset(), backtest.py, and
+    bracket_schema.py. External callers should prefer the name-based
+    compute_features() public API instead.
 
     Computes team_a_stat - team_b_stat for each efficiency metric. The canonical
     ordering (team_a = lower SeedNum = better seed) is set by the caller; this
@@ -100,6 +215,91 @@ def compute_features(
     }
 
 
+# ---------------------------------------------------------------------------
+# Public name-based compute_features() API
+# ---------------------------------------------------------------------------
+
+
+def compute_features(
+    team_a: str,
+    team_b: str,
+    season: int,
+    stats_lookup: dict[tuple[int, int], dict[str, Any]] | None = None,
+    processed_dir: str | pathlib.Path = "data/processed",
+    as_of_date: str | None = None,
+) -> dict[str, float]:
+    """Compute differential efficiency features for a matchup using team name strings.
+
+    Public API that resolves team names to IDs via team_normalization.parquet,
+    optionally validates an as_of_date cutoff, and delegates to
+    _compute_features_by_id() for the actual feature arithmetic.
+
+    Args:
+        team_a: Name of team A (e.g., "Duke", "Michigan", "Kansas").
+            Must match canonical_name, kaggle_name, or cbbdata_name in
+            team_normalization.parquet.
+        team_b: Name of team B. Same name resolution rules as team_a.
+        season: Tournament season year (e.g., 2025).
+        stats_lookup: Optional pre-built stats lookup dict from build_stats_lookup().
+            If None, build_stats_lookup(processed_dir) is called automatically.
+        processed_dir: Directory containing processed .parquet files.
+            Default: data/processed
+        as_of_date: Optional YYYY-MM-DD cutoff date. Must be a recognized
+            Selection Sunday date from SELECTION_SUNDAY_DATES. When provided,
+            asserts that the stats_lookup contains only data available before
+            this date. The Torvik rating snapshots satisfy this by construction
+            (sourced from cbbdata archive at or before Selection Sunday).
+            Raises ValueError if the date is not a valid Selection Sunday date.
+
+    Returns:
+        Dict with keys matching FEATURE_COLS: adjoe_diff, adjde_diff, barthag_diff,
+        seed_diff, adjt_diff, wab_diff. Values are team_a_stat - team_b_stat.
+
+    Raises:
+        ValueError: If team_a or team_b is not found in team_normalization.parquet.
+        ValueError: If as_of_date is provided but is not a recognized Selection
+            Sunday date in SELECTION_SUNDAY_DATES.
+        KeyError: If either team is missing from stats_lookup for the given season.
+
+    Example:
+        >>> feats = compute_features("Duke", "Michigan", 2025)
+        >>> feats.keys()
+        dict_keys(['adjoe_diff', 'adjde_diff', 'barthag_diff', 'seed_diff', 'adjt_diff', 'wab_diff'])
+
+        >>> # With cutoff date (Selection Sunday 2025 is valid)
+        >>> feats2 = compute_features("Duke", "Michigan", 2025, as_of_date="2025-03-16")
+        >>> feats == feats2
+        True
+
+        >>> # Invalid cutoff date raises ValueError
+        >>> compute_features("Duke", "Michigan", 2025, as_of_date="2099-01-01")
+        ValueError: as_of_date '2099-01-01' is not a recognized Selection Sunday date...
+    """
+    # Validate as_of_date if provided
+    if as_of_date is not None:
+        valid_dates = set(SELECTION_SUNDAY_DATES.values())
+        if as_of_date not in valid_dates:
+            valid_examples = sorted(valid_dates)[-5:]  # Show most recent examples
+            raise ValueError(
+                f"as_of_date {as_of_date!r} is not a recognized Selection Sunday date. "
+                f"Must be one of the dates in SELECTION_SUNDAY_DATES. "
+                f"Recent valid dates: {valid_examples}. "
+                "The Torvik snapshots satisfy the cutoff by construction when sourced "
+                "from the cbbdata archive endpoint at or before Selection Sunday."
+            )
+
+    # Resolve team names to integer kaggle_team_ids
+    team_a_id = _resolve_team_id(team_a, processed_dir)
+    team_b_id = _resolve_team_id(team_b, processed_dir)
+
+    # Build stats_lookup if not provided
+    if stats_lookup is None:
+        stats_lookup = build_stats_lookup(processed_dir)
+
+    # Delegate to internal ID-based function
+    return _compute_features_by_id(season, team_a_id, team_b_id, stats_lookup)
+
+
 def build_stats_lookup(
     processed_dir: str | pathlib.Path = "data/processed",
 ) -> dict[tuple[int, int], dict[str, Any]]:
@@ -111,7 +311,7 @@ def build_stats_lookup(
 
     The lookup dict is keyed by (season, kaggle_team_id) and contains only teams
     with valid kaggle_team_id values. Non-tournament teams are included (they have
-    no seed_num and will raise KeyError if queried in compute_features).
+    no seed_num and will raise KeyError if queried in _compute_features_by_id).
 
     Note: current_season_stats.parquet uses column name 'year' (not 'season').
     This function handles the rename transparently.
@@ -221,8 +421,8 @@ def build_matchup_dataset(
     Canonical ordering: team_a = team with lower SeedNum (better seed / higher rank).
     Label: 1 if team_a (lower-seeded / better team) won, 0 if team_b upset.
 
-    Features are computed via compute_features() using the stats lookup built by
-    build_stats_lookup(). Rows where either team is missing from the stats lookup
+    Features are computed via _compute_features_by_id() using the stats lookup built
+    by build_stats_lookup(). Rows where either team is missing from the stats lookup
     are dropped with a warning.
 
     Args:
@@ -302,7 +502,7 @@ def build_matchup_dataset(
 
         # Compute features — skip if either team missing from stats lookup
         try:
-            features = compute_features(season, team_a_id, team_b_id, stats_lookup)
+            features = _compute_features_by_id(season, team_a_id, team_b_id, stats_lookup)
         except KeyError:
             missing_stats += 1
             continue

@@ -60,9 +60,9 @@ from src.backtest.scoring import (
 from src.models.ensemble import TwoTierEnsemble
 from src.models.features import (
     FEATURE_COLS,
+    _compute_features_by_id,
     build_matchup_dataset,
     build_stats_lookup,
-    compute_features,
 )
 from src.models.temporal_cv import BACKTEST_YEARS
 from src.models.train_logistic import CLIP_HI, CLIP_LO, ClippedCalibrator
@@ -430,7 +430,7 @@ def backtest(
                     Returns 0.5 for KeyError (missing teams -- First Four edge case).
                     """
                     try:
-                        features = compute_features(
+                        features = _compute_features_by_id(
                             _year, team_a_id, team_b_id, stats_lookup
                         )
                     except KeyError:
@@ -478,7 +478,7 @@ def backtest(
                 """
                 def predict_fn(team_a_id: int, team_b_id: int) -> float:
                     try:
-                        features = compute_features(
+                        features = _compute_features_by_id(
                             _year, team_a_id, team_b_id, stats_lookup
                         )
                         x = np.array(
