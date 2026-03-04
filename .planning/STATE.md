@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 4 COMPLETE — bracket simulation infrastructure all 6 plans done; ready for Phase 5 (ensemble model / MC calibration)
+**Current focus:** Phase 5 IN PROGRESS — backtesting harness; 05-01 (scoring helpers) complete, ready for 05-02 (orchestration loop)
 
 ## Current Position
 
-Phase: 4 of 10 (Bracket Simulator) — Complete
-Plan: 6 of 6 in phase 04 (phase complete)
-Status: 04-06 complete — Phase 4 integration validation: 5/5 success criteria PASS; upset rate 73.0%, championship 72-63
-Last activity: 2026-03-04 — Completed 04-06-PLAN.md (Phase 4 integration validation)
+Phase: 5 of 10 (Backtesting Harness) — In progress
+Plan: 1 of 3 in phase 05
+Status: 05-01 complete — backtest scoring module: build_actual_slot_winners(), score_bracket(), compute_game_metrics() verified
+Last activity: 2026-03-04 — Completed 05-01-PLAN.md (backtest scoring helpers)
 
-Progress: [███████░░░] 53% (16/30 plans estimated)
+Progress: [███████░░░] 57% (17/30 plans estimated)
 
 ## Performance Metrics
 
@@ -31,9 +31,10 @@ Progress: [███████░░░] 53% (16/30 plans estimated)
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
 | 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
+| 05-backtesting-harness | 1 so far | ~2 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (~3 min), 04-03 (~2 min), 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min)
+- Last 5 plans: 04-03 (~2 min), 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min), 05-01 (~2 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -108,6 +109,10 @@ Recent decisions affecting current work:
 - [04-06]: Upset rate 73.0% using complement formula P(at least one 10+ seed in Sweet 16) -- ClippedCalibrator allows sufficient upset probability; no overconfidence concern
 - [04-06]: check_upset_rate() uses complement formula (1 - product(1-p_i)) not simple sum -- mathematically correct for independent events
 - [04-06]: validate_phase4() is Phase 4 integration test callable -- use for regression testing before Phase 5/6 changes
+- [05-01]: build_actual_slot_winners() uses DISTINCT in team_slots CTE -- seed labels appear 6 times in SeedRoundSlots (one per round); DISTINCT prevents duplicate joins
+- [05-01]: score_bracket() normalizes predicted_slots to handle both flat {slot_id: team_id} and nested {slot_id: {'team_id': ...}} formats (simulate_bracket() output is nested)
+- [05-01]: compute_game_metrics() uses batch scaler.transform() + predict_proba() -- not per-game predict_fn calls; 4-arg form (test_df, feature_cols, scaler, calibrated_clf)
+- [05-01]: ESPN_ROUND_POINTS = {1:10, 2:20, 3:40, 4:80, 5:160, 6:320}; ESPN_MAX_SCORE = 1920; First Four (round 0) not scored
 
 ### Pending Todos
 
@@ -131,6 +136,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:48:15Z
-Stopped at: Completed 04-06-PLAN.md — Phase 4 integration validation (5/5 criteria PASS)
+Last session: 2026-03-04T04:42:58Z
+Stopped at: Completed 05-01-PLAN.md — backtest scoring helpers (build_actual_slot_winners, score_bracket, compute_game_metrics)
 Resume file: None
