@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 10 (Interactive Override UI) — Plan 10-01 complete; override_map pipeline wired from session_state through cache layer into simulate_bracket().
+**Current focus:** Phase 10 (Interactive Override UI) — Plan 10-02 complete; full override UI delivered with selectbox controls, amber SVG feedback, and reset button.
 
 ## Current Position
 
 Phase: 10 of 10 (Interactive Override UI) — In Progress
-Plan: 1 of N in phase 10 (10-01 complete)
-Status: Plan 10-01 complete — override_map pipeline wired (session_state -> cache -> simulate_bracket)
-Last activity: 2026-03-04 — Completed 10-01-PLAN.md
+Plan: 2 of N in phase 10 (10-01, 10-02 complete)
+Status: Plan 10-02 complete — override controls, amber SVG feedback, reset button, app.py integration
+Last activity: 2026-03-04 — Completed 10-02-PLAN.md
 
-Progress: [█████████░] ~90% (34/~37 plans estimated)
+Progress: [█████████░] ~92% (35/~37 plans estimated)
 
 ## Performance Metrics
 
@@ -175,6 +175,10 @@ Recent decisions affecting current work:
 - [10-01]: override_map uses regular (non-underscore) parameter naming so Streamlit includes it in cache key; hash_funcs={dict: lambda d: str(sorted(d.items()))} handles dict hashing
 - [10-01]: Empty dict normalized to None via 'override_map or None' before passing to simulate_bracket() — avoids unnecessary validator overhead when no overrides exist (research pitfall 4)
 - [10-01]: Sidebar override count display: st.warning(f"{len(override_map)} manual override(s) active") shown when override_map is non-empty
+- [10-02]: OVERRIDE_ROUNDS covers 7 round groups with exactly 67 slots (4 FF + 32 R1 + 16 R2 + 8 R3 + 4 R4 + 2 R5 + 1 R6)
+- [10-02]: Amber override visual (BOX_FILL_OVERRIDDEN=#2d1f00, BOX_STROKE_OVERRIDDEN=#f5a623) takes priority over champion green in _svg_game_box()
+- [10-02]: reset_overrides() is a module-level function (not method/lambda) for st.button on_click compatibility
+- [10-02]: Reset button disabled when n_overrides == 0 for clear affordance
 
 ### Pending Todos
 
@@ -198,6 +202,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:53:53Z
-Stopped at: Completed 10-01-PLAN.md — override_map pipeline wired from session_state through data_loader cached functions into simulate_bracket()
+Last session: 2026-03-04T17:00:06Z
+Stopped at: Completed 10-02-PLAN.md — override controls UI, amber SVG feedback, reset button, app.py integration
 Resume file: None
