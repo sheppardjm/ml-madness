@@ -184,12 +184,12 @@ Plans:
   2. The table includes a recommended model row identifying the best performer by multi-year Brier score
   3. A bar chart or heat map visualizes per-round accuracy differences between models, making it easy to see where the ensemble improves on the baseline
 
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 07-01: Comparison table formatter (load backtest/results.json; pivot into model-vs-year matrix; compute aggregate stats; print as formatted table)
-- [ ] 07-02: Visualization (Plotly bar chart of per-round accuracy; heatmap of Brier score by model and year)
-- [ ] 07-03: Model recommendation logic (select best model by multi-year average Brier score; write selection to models/selected.json)
+- [ ] 07-01-PLAN.md — Comparison table formatter (create src/dashboard/ module; load backtest JSON; print formatted side-by-side table with per-year Brier, per-round accuracy, upset detection tradeoff)
+- [ ] 07-02-PLAN.md — Visualization (matplotlib grouped bar chart of per-round accuracy; heatmap of Brier score by model and year; save as PNG)
+- [ ] 07-03-PLAN.md — Model recommendation logic (select best model by multi-year mean Brier score; write models/selected.json with artifact path for Phase 9)
 
 ---
 
