@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 4 of 10 (Bracket Simulator) — In progress
-Plan: 2 of 6 in phase 04
-Status: 04-02 complete — simulate_bracket() with deterministic mode, all 67 slots filled
-Last activity: 2026-03-04 — Completed 04-02-PLAN.md (simulate_bracket deterministic mode)
+Plan: 3 of 6 in phase 04
+Status: 04-03 complete — simulate_bracket() monte_carlo mode with 68x68 prob matrix and vectorized numpy draws
+Last activity: 2026-03-04 — Completed 04-03-PLAN.md (Monte Carlo simulation mode)
 
-Progress: [█████░░░░░] 40% (12/30 plans estimated)
+Progress: [█████░░░░░] 43% (13/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,10 +30,10 @@ Progress: [█████░░░░░] 40% (12/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
-| 04-bracket-simulator | 2 (in progress) | ~5 min | ~3 min |
+| 04-bracket-simulator | 3 (in progress) | ~7 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (~3 min), 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min)
+- Last 5 plans: 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min), 04-03 (~2 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -91,6 +91,11 @@ Recent decisions affecting current work:
 - [04-02]: build_stats_lookup() overlay fix: current_season_stats.parquet overlaid on historical 2025 data (not replacing all of it) — First Four teams absent from cbbdata fall back to historical_torvik_ratings snapshot
 - [04-02]: Bracket JSON contract finalized: {mode, season, slots: {slot_id: {team_id, win_prob, round}}, champion: {team_id, win_prob}} — all values native Python types for JSON serialization
 - [04-02]: 2025 deterministic bracket champion: team_id=1222, win_prob=0.5425 (championship game)
+- [04-03]: prob_matrix pre-computed once (4,624 predict_fn calls) before simulation loop; each run indexes via prob_matrix[occ_i, occ_j] -- critical for vectorized performance
+- [04-03]: occupants dict stores np.ndarray(shape=(n_runs,), dtype=int32) of team indices (not team_ids) per slot; idx_to_team converts back at output time
+- [04-03]: advancement_probs includes 'Champion' key (alias for R6CH fraction) alongside 'Championship' (championship game slot winner)
+- [04-03]: Monte Carlo champion (team 1222, 31.8% confidence with seed=42, 10K runs) matches deterministic champion -- model self-consistent
+- [04-03]: Performance: 10K runs in 0.21s -- 143x headroom under 30s limit; np.random.default_rng(seed) with PCG64 for reproducibility
 
 ### Pending Todos
 
@@ -114,6 +119,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:30:00Z
-Stopped at: Completed 04-02-PLAN.md — simulate_bracket() deterministic mode
+Last session: 2026-03-04T03:33:53Z
+Stopped at: Completed 04-03-PLAN.md — simulate_bracket() Monte Carlo mode
 Resume file: None
