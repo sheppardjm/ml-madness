@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 8 (Feature Store) in progress — 08-01 complete (name-based API), 08-02 complete (VIF analysis). compute_features(team_a, team_b, season) public API created; vif_report.json written.
+**Current focus:** Phase 8 (Feature Store) fully complete — 4/4 plans done (08-01 through 08-04). compute_features() API, VIF analysis, 23-test pytest suite, and ROADMAP success criteria all finalized. Ready for Phase 9 (Bracket Visualization UI).
 
 ## Current Position
 
 Phase: 8 of 10 (Feature Store) — Complete
-Plan: 3 of 3 in phase 08 (08-01 complete, 08-02 complete, 08-03 complete)
-Status: Phase 8 complete — all three plans done; 22-test pytest suite passing
-Last activity: 2026-03-04 — Completed 08-03-PLAN.md (pytest suite: SC-1 through SC-4 verified)
+Plan: 4 of 4 in phase 08 (08-01 complete, 08-02 complete, 08-03 complete, 08-04 complete)
+Status: Phase 8 fully complete — all four plans done; 23-test pytest suite passing; ROADMAP success criteria accurate
+Last activity: 2026-03-04 — Completed 08-04-PLAN.md (gap closure: ROADMAP SC text + model asymmetry doc test)
 
-Progress: [█████████░] 91% (28/30 plans estimated)
+Progress: [█████████░] 93% (29/31 plans estimated)
 
 ## Performance Metrics
 
@@ -158,6 +158,8 @@ Recent decisions affecting current work:
 - [08-03]: seed_diff returns int (not float) from _compute_features_by_id — seed_num stored as int in stats_lookup; isinstance check must be (int, float) not strictly float
 - [08-03]: Plan-specified team IDs Houston=1220, UCLA=1437 are wrong (map to Hofstra and Villanova); correct IDs are Houston=1222, UCLA=1417; always verify ID-to-name mapping from team_normalization.parquet
 - [08-03]: Phase 8 pytest suite: 22 tests, session-scoped stats_lookup (built once), autouse reset_name_cache fixture; `uv run pytest tests/ -v` is canonical verification command for feature store
+- [08-04]: Gap-closure approach: when verifier finds goal-document mismatches (not code defects), update goal text to match decisions — SC-1 (WAB not SOS), SC-2 (VIF=11.2 accepted), SC-3 (by construction), SC-4 (feature-only symmetry)
+- [08-04]: model-level probability symmetry structurally impossible with current training convention (team_a = lower seed produces non-zero scaler means); P(Duke,Michigan)+P(Michigan,Duke)=1.179 is expected; documented in test_model_probability_asymmetry_documented()
 
 ### Pending Todos
 
@@ -181,6 +183,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:48:54Z
-Stopped at: Completed 08-03-PLAN.md — pytest suite (22 tests) for feature store; all SC-1 through SC-4 criteria verified
+Last session: 2026-03-04T15:23:01Z
+Stopped at: Completed 08-04-PLAN.md — gap closure plan; Phase 8 fully complete (4/4 plans); 23-test suite passing
 Resume file: None
