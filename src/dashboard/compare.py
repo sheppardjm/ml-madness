@@ -170,16 +170,27 @@ def print_comparison_table(models_data: dict[str, dict[str, Any]]) -> None:
     print("MODEL COMPARISON DASHBOARD (2022-2025 Holdout)")
     print("=" * 100)
 
+    # Build all-model Brier ranking to identify best
+    all_brier = {
+        "baseline": baseline["mean_brier"],
+        "xgb": _XGB_MEAN_BRIER,
+        "lgb": _LGB_MEAN_BRIER,
+        "ensemble": ensemble["mean_brier"],
+    }
+    best_model = min(all_brier, key=all_brier.get)
+
     summary_header = (
         f"{'Model':<20} | "
         f"{'Mean Brier':>10} | "
         f"{'Mean Acc':>9} | "
         f"{'Mean ESPN':>9} | "
-        f"{'Upset Det Rate':>14}"
+        f"{'Upset Det Rate':>14} | "
+        f"{'Status':<13}"
     )
     print(summary_header)
-    print("-" * 75)
+    print("-" * 90)
 
+    # Full-backtest models (baseline, ensemble) have all metrics
     model_order = ["baseline", "ensemble"]
     for model_name in model_order:
         if model_name not in models_data:
@@ -189,12 +200,27 @@ def print_comparison_table(models_data: dict[str, dict[str, Any]]) -> None:
         acc = data.get("mean_accuracy", float("nan"))
         espn = data.get("mean_espn_score", float("nan"))
         upset_rate = _compute_mean_upset_rate(data)
+        status = "RECOMMENDED" if model_name == best_model else ""
         row = (
             f"{model_name:<20} | "
             f"{brier:>10.4f} | "
             f"{acc:>9.1%} | "
             f"{espn:>9.1f} | "
-            f"{upset_rate:>14.1%}"
+            f"{upset_rate:>14.1%} | "
+            f"{status:<13}"
+        )
+        print(row)
+
+    # XGB and LGB rows (aggregate Brier only — no bracket-simulation data)
+    for model_name, brier_val in [("xgb", _XGB_MEAN_BRIER), ("lgb", _LGB_MEAN_BRIER)]:
+        status = "RECOMMENDED" if model_name == best_model else ""
+        row = (
+            f"{model_name:<20} | "
+            f"{brier_val:>10.4f} | "
+            f"{'N/A':>9} | "
+            f"{'N/A':>9} | "
+            f"{'N/A':>14} | "
+            f"{status:<13}"
         )
         print(row)
 
@@ -209,13 +235,13 @@ def print_comparison_table(models_data: dict[str, dict[str, Any]]) -> None:
     espn_delta_str = f"{espn_delta:+.1f}"
     upset_delta_str = f"{upset_delta:+.1%}"
 
-    print("-" * 75)
+    print("-" * 90)
     delta_row = (
         f"{'delta (ens - base)':<20} | "
         f"{brier_delta_str:>10} | "
         f"{acc_delta_str:>9} | "
         f"{espn_delta_str:>9} | "
-        f"{upset_delta_str:>14}"
+        f"{upset_delta_str:>14} |"
     )
     print(delta_row)
     print("=" * 100)
