@@ -17,8 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
 - [x] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
 - [x] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
-- [ ] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
-- [ ] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
+- [x] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
+- [x] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
 - [ ] **Phase 8: Feature Store** - Formalize the feature computation layer with a tested API, VIF analysis, and verified cutoff-date enforcement for historical replay
 - [ ] **Phase 9: Bracket Visualization UI** - Streamlit app displaying the full 68-team bracket as programmatic SVG with predicted winners and per-game win probabilities
 - [ ] **Phase 10: Interactive Override UI** - Add manual pick overrides to the bracket UI with downstream cascade recalculation and championship score display
@@ -287,7 +287,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 4. Bracket Simulator | 6/6 | ✓ Complete | 2026-03-04 |
 | 5. Backtesting Harness | 3/3 | ✓ Complete | 2026-03-04 |
 | 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
-| 7. Model Comparison Dashboard | 0/3 | Not started | - |
+| 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
 | 8. Feature Store | 0/5 | Not started | - |
 | 9. Bracket Visualization UI | 0/5 | Not started | - |
 | 10. Interactive Override UI | 0/5 | Not started | - |
