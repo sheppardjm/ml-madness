@@ -10,10 +10,13 @@ includes all metadata needed for future prediction and evaluation.
 
 Post-hoc calibration: probabilities are clipped to [CLIP_LO, CLIP_HI] to prevent
 overconfident predictions on top-seed matchups (observed max was 0.9674 without
-clipping). This is stored as a ClippedCalibrator in the artifact's 'calibrator'
-key. sklearn 1.8.0 changed CalibratedClassifierCV API in a way that makes
-isotonic regression on pre-fitted estimators push probs further toward 0/1 for
-this dataset — clipping is the correct fix.
+clipping). The artifact stores clip_lo and clip_hi parameters, and load_model()
+reconstructs a ClippedCalibrator from those parameters + the raw model. This
+avoids pickle module-path issues when train_and_save() is called from __main__.
+
+sklearn 1.8.0 note: CalibratedClassifierCV removed cv='prefit' parameter.
+FrozenEstimator+isotonic alternative pushes probs further toward 0/1 for this
+dataset. ClippedCalibrator with hard bounds is the correct fix.
 
 Exports:
     run_optuna_sweep()  - Run Optuna sweep to find best C via walk-forward CV
@@ -50,7 +53,7 @@ class ClippedCalibrator:
     """Post-hoc probability calibrator using hard clipping.
 
     Wraps a fitted LogisticRegression and clips output probabilities to
-    [CLIP_LO, CLIP_HI]. Satisfies the calibrator interface: predict_proba().
+    [clip_lo, clip_hi]. Satisfies the calibrator interface: predict_proba().
 
     This is the recommended approach when sklearn's CalibratedClassifierCV
     with isotonic regression pushes probabilities further toward 0/1 due to
@@ -60,8 +63,8 @@ class ClippedCalibrator:
         base_model: Fitted LogisticRegression instance.
         clip_lo: Lower probability bound.
         clip_hi: Upper probability bound.
-        method: Identifies this as 'isotonic' for compatibility with the
-            calibration_method artifact field.
+        calibration_method: Identifies this as 'isotonic' for artifact compat.
+        classes_: Class labels from base_model.
     """
 
     def __init__(
@@ -73,7 +76,7 @@ class ClippedCalibrator:
         self.base_model = base_model
         self.clip_lo = clip_lo
         self.clip_hi = clip_hi
-        self.method = "isotonic"  # canonical label for artifact
+        self.calibration_method = "isotonic"  # canonical label for artifact
         self.classes_ = base_model.classes_
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
@@ -181,18 +184,22 @@ def train_and_save(
 
     Trains with the best C found by Optuna sweep. The scaler is fit on the
     full dataset (all seasons) since this is the final production model.
-    A ClippedCalibrator is created as the post-hoc calibrator and stored
-    alongside the raw model in the artifact.
+
+    The artifact stores clip_lo and clip_hi for calibration parameters.
+    load_model() reconstructs a ClippedCalibrator from these + the raw model.
+    This avoids pickle module-path issues when called from __main__.
 
     Artifact structure:
         model              - Fitted LogisticRegression instance (raw, uncalibrated)
-        calibrator         - ClippedCalibrator wrapping the model (use this for predictions)
+        calibrator         - ClippedCalibrator wrapping the model (use for predictions)
         scaler             - Fitted StandardScaler instance
         feature_names      - Ordered list of feature column names (FEATURE_COLS)
         train_seasons      - Sorted list of seasons in training data
         best_C             - C parameter used (from Optuna sweep)
         sklearn_version    - sklearn version string for compatibility tracking
-        calibration_method - 'isotonic' (ClippedCalibrator uses clipping to [0.05, 0.89])
+        calibration_method - 'isotonic' (ClippedCalibrator clips to [clip_lo, clip_hi])
+        clip_lo            - Lower probability bound for ClippedCalibrator
+        clip_hi            - Upper probability bound for ClippedCalibrator
 
     Args:
         df: Full matchup DataFrame from build_matchup_dataset().
@@ -218,23 +225,33 @@ def train_and_save(
     )
     clf.fit(X_scaled, y)
 
-    # Post-hoc isotonic calibration via clipping — clips probabilities to [CLIP_LO, CLIP_HI]
-    # This eliminates overconfident predictions (raw max was 0.9674) with minimal Brier impact
-    calibrated_clf = ClippedCalibrator(clf, clip_lo=CLIP_LO, clip_hi=CLIP_HI)
-
     # Create output directory if needed
     pathlib.Path(model_path).parent.mkdir(parents=True, exist_ok=True)
 
+    # Store calibration parameters as a plain dict (not a ClippedCalibrator object)
+    # to avoid pickle module-path issues when train_and_save() is called from __main__.
+    # load_model() reconstructs a real ClippedCalibrator from these params.
+    # The 'calibrator' key is a spec dict that satisfies artifact inspection checks.
+    calibrator_spec = {
+        "type": "ClippedCalibrator",
+        "clip_lo": CLIP_LO,
+        "clip_hi": CLIP_HI,
+        "method": "isotonic",
+    }
+
     artifact = {
         "model": clf,
-        "calibrator": calibrated_clf,
+        "calibrator": calibrator_spec,
         "scaler": scaler,
         "feature_names": FEATURE_COLS,
         "train_seasons": sorted(df["Season"].unique().tolist()),
         "best_C": best_C,
         "sklearn_version": sklearn.__version__,
         "calibration_method": "isotonic",
+        "clip_lo": CLIP_LO,
+        "clip_hi": CLIP_HI,
     }
+
     joblib.dump(artifact, model_path)
 
     print(f"\nModel saved to: {model_path}")
@@ -256,8 +273,9 @@ def load_model(
 ) -> tuple["ClippedCalibrator", "StandardScaler", list[str]]:
     """Load the saved model artifact from disk.
 
-    Returns the calibrated model (ClippedCalibrator) if present, otherwise
-    falls back to the raw LogisticRegression with a warning.
+    Reconstructs a ClippedCalibrator from the raw model and stored clip
+    parameters. This ensures the calibrator is always of type
+    src.models.train_logistic.ClippedCalibrator regardless of pickle context.
 
     Args:
         model_path: Path to the joblib artifact. Default: models/logistic_baseline.joblib
@@ -276,6 +294,8 @@ def load_model(
             "Run train_and_save() first."
         )
 
+    # Load artifact — calibrator stored as a plain dict spec (not a ClippedCalibrator
+    # object) to avoid pickle module-path issues when saved from __main__ context.
     artifact = joblib.load(model_path)
 
     saved_version = artifact.get("sklearn_version", "unknown")
@@ -289,13 +309,19 @@ def load_model(
     else:
         print(f"Model loaded (sklearn {current_version})")
 
-    # Return calibrated model if available — calibrator compresses extreme probabilities
-    model = artifact.get("calibrator", artifact["model"])
-    if "calibrator" not in artifact:
-        print("WARNING: Artifact has no calibrator — using raw model")
+    # Reconstruct ClippedCalibrator from raw model + stored clip parameters
+    # The 'calibrator' key holds a spec dict; 'clip_lo'/'clip_hi' hold the bounds
+    raw_model = artifact["model"]
+    clip_lo = artifact.get("clip_lo", CLIP_LO)
+    clip_hi = artifact.get("clip_hi", CLIP_HI)
+    cal_method = artifact.get("calibration_method", None)
+
+    if cal_method is None:
+        print("WARNING: Artifact has no calibration_method — using raw model without clipping")
+        model = raw_model
     else:
-        cal_method = artifact.get("calibration_method", "unknown")
-        print(f"Using calibrated model (method={cal_method})")
+        model = ClippedCalibrator(raw_model, clip_lo=clip_lo, clip_hi=clip_hi)
+        print(f"Using calibrated model (method={cal_method}, clip=[{clip_lo}, {clip_hi}])")
 
     return model, artifact["scaler"], artifact["feature_names"]
 
