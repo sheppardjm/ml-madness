@@ -36,7 +36,7 @@
 
 - [x] **WEBU-01**: Visual 68-team bracket display with predicted winners
 - [x] **WEBU-02**: Win probabilities shown per game matchup
-- [ ] **WEBU-03**: Interactive pick overrides with downstream cascade recalculation
+- [x] **WEBU-03**: Interactive pick overrides with downstream cascade recalculation
 
 ## v2 Requirements
 
@@ -87,7 +87,7 @@
 | BACK-03 | Phase 7 | Complete |
 | WEBU-01 | Phase 9 | Complete |
 | WEBU-02 | Phase 9 | Complete |
-| WEBU-03 | Phase 10 | Pending |
+| WEBU-03 | Phase 10 | Complete |
 
 **Coverage:**
 - v1 requirements: 18 total
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-04 after Phase 9 completion — WEBU-01, WEBU-02 marked Complete*
+*Last updated: 2026-03-04 after Phase 10 completion — all v1 requirements Complete*
