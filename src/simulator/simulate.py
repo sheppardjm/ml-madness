@@ -25,6 +25,7 @@ from src.simulator.bracket_schema import (
     build_team_seed_map,
     slot_round_number,
 )
+from src.simulator.score_predictor import predict_championship_score
 
 
 def simulate_bracket(
@@ -128,6 +129,7 @@ def simulate_bracket(
             predict_fn=predict_fn,
             slots_csv=slots_csv or SLOTS_CSV,
             season=season,
+            stats_lookup=stats_lookup,
         )
     raise ValueError(
         f"Unknown simulation mode: {mode!r}. "
@@ -398,6 +400,7 @@ def _simulate_deterministic(
     predict_fn: Callable[[int, int], float],
     slots_csv: str,
     season: int,
+    stats_lookup: dict | None = None,
 ) -> dict[str, Any]:
     """Internal deterministic bracket simulation.
 
@@ -406,11 +409,14 @@ def _simulate_deterministic(
     call.
 
     Args:
-        seedings:  Dict mapping seed_label -> kaggle_team_id.
-        predict_fn: Callable(team_a_id, team_b_id) -> float.
-                    Caller must ensure team_a has lower seed number.
-        slots_csv: Path to MNCAATourneySlots.csv.
-        season:    Tournament season year.
+        seedings:     Dict mapping seed_label -> kaggle_team_id.
+        predict_fn:   Callable(team_a_id, team_b_id) -> float.
+                      Caller must ensure team_a has lower seed number.
+        slots_csv:    Path to MNCAATourneySlots.csv.
+        season:       Tournament season year.
+        stats_lookup: Optional stats dict from build_stats_lookup(). If provided,
+                      the championship_game key is populated with a predicted score.
+                      If None, championship_game is set to None.
 
     Returns:
         Simulation result dict (see simulate_bracket docstring).
@@ -504,6 +510,37 @@ def _simulate_deterministic(
             "win_prob": float(slot_prob[slot_id]),
             "round": ROUND_NAMES.get(round_num, f"Round {round_num}"),
         }
+
+    # Step 6: Add championship game predicted score if stats_lookup is provided.
+    # The two finalists come from R5WX and R5YZ; the champion is R6CH winner.
+    if stats_lookup is not None:
+        finalist_wx = slot_winner["R5WX"]  # winner of Final Four game WX
+        finalist_yz = slot_winner["R5YZ"]  # winner of Final Four game YZ
+        champion_id = slot_winner["R6CH"]
+        champion_prob = slot_prob["R6CH"]
+
+        # Determine winner/loser ordering for score prediction
+        if champion_id == finalist_wx:
+            winner_id = finalist_wx
+            loser_id = finalist_yz
+        else:
+            winner_id = finalist_yz
+            loser_id = finalist_wx
+
+        result["championship_game"] = predict_championship_score(
+            team_a_id=winner_id,
+            team_b_id=loser_id,
+            win_prob_a=champion_prob,
+            stats_lookup=stats_lookup,
+            season=season,
+        )
+    else:
+        # No stats_lookup provided: graceful degradation
+        print(
+            "Note: championship_game score prediction requires stats_lookup. "
+            "Pass stats_lookup=stats to simulate_bracket() to enable score prediction."
+        )
+        result["championship_game"] = None
 
     return result
 
