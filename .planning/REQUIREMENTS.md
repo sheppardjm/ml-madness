@@ -7,9 +7,9 @@
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: Historical tournament data backfilled from Kaggle (20+ years of seasons)
+- [x] **DATA-01**: Historical tournament data backfilled from Kaggle (20+ years of seasons)
 - [x] **DATA-02**: Current 2025-26 season stats pulled from CBBpy + cbbdata APIs
-- [ ] **DATA-03**: Team name normalization mapping across all data sources (ESPN, Kaggle, Sports-Reference, cbbdata)
+- [x] **DATA-03**: Team name normalization mapping across all data sources (ESPN, Kaggle, Sports-Reference, cbbdata)
 - [x] **DATA-04**: Auto-fetch 68-team bracket from ESPN unofficial API with manual CSV fallback
 
 ### Modeling
