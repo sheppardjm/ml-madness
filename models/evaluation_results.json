@@ -1,14 +1,14 @@
 {
   "model": "logistic_baseline",
-  "best_C": 2.727740725324523,
+  "best_C": 2.391579594561129,
   "per_year": [
     {
       "year": 2022,
       "n_games": 63,
-      "brier": 0.21426147981508217,
+      "brier": 0.2149544319279452,
       "chalk_brier": 0.3333333333333333,
-      "brier_delta": 0.11907185351825114,
-      "log_loss": 0.6112710473294715,
+      "brier_delta": 0.11837890140538812,
+      "log_loss": 0.6158750709989754,
       "accuracy": 0.6507936507936508,
       "n_upsets": 21,
       "upset_correct": 17
@@ -16,10 +16,10 @@
     {
       "year": 2023,
       "n_games": 63,
-      "brier": 0.22181432287482403,
+      "brier": 0.2198929595707497,
       "chalk_brier": 0.30158730158730157,
-      "brier_delta": 0.07977297871247754,
-      "log_loss": 0.6501599188826979,
+      "brier_delta": 0.08169434201655187,
+      "log_loss": 0.6317484267386163,
       "accuracy": 0.6666666666666666,
       "n_upsets": 19,
       "upset_correct": 12
@@ -27,10 +27,10 @@
     {
       "year": 2024,
       "n_games": 62,
-      "brier": 0.17655790262043494,
+      "brier": 0.17782554498653974,
       "chalk_brier": 0.3064516129032258,
-      "brier_delta": 0.12989371028279087,
-      "log_loss": 0.5168013508349574,
+      "brier_delta": 0.12862606791668607,
+      "log_loss": 0.526659522278814,
       "accuracy": 0.7096774193548387,
       "n_upsets": 19,
       "upset_correct": 11
@@ -38,19 +38,19 @@
     {
       "year": 2025,
       "n_games": 60,
-      "brier": 0.14560357434959229,
+      "brier": 0.1473588141612832,
       "chalk_brier": 0.18333333333333332,
-      "brier_delta": 0.037729758983741035,
-      "log_loss": 0.43882713087411285,
+      "brier_delta": 0.03597451917205011,
+      "log_loss": 0.45215665723367343,
       "accuracy": 0.7333333333333333,
       "n_upsets": 11,
       "upset_correct": 6
     }
   ],
-  "mean_brier": 0.18955931991498334,
-  "mean_log_loss": 0.5542648619803099,
+  "mean_brier": 0.19000793766162943,
+  "mean_log_loss": 0.5566099193125198,
   "mean_accuracy": 0.6901177675371224,
   "beats_chalk_every_year": true,
   "below_023_threshold": true,
-  "no_overconfident_top_seed": false
+  "no_overconfident_top_seed": true
 }
