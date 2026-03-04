@@ -21,6 +21,7 @@ from src.ui.data_loader import (
 from src.ui.bracket_layout import compute_bracket_layout
 from src.ui.bracket_svg import render_bracket_svg_string
 from src.ui.advancement_table import build_advancement_df, get_round_column_config
+from src.ui.override_controls import build_override_controls, reset_overrides
 
 # --- Session state initialization ---
 if "season" not in st.session_state:
@@ -86,6 +87,30 @@ with tab_bracket:
         f'</body></html>'
     )
     components.html(html_string, height=layout["canvas_height"] + 40, scrolling=True)
+
+    # --- Override controls ---
+    st.divider()
+    col_reset, col_info = st.columns([1, 3])
+    with col_reset:
+        n_overrides = len(st.session_state.get("override_map", {}))
+        st.button(
+            "Reset to model picks",
+            on_click=reset_overrides,
+            type="secondary",
+            use_container_width=True,
+            disabled=(n_overrides == 0),
+            help="Clear all manual overrides and restore ensemble model predictions",
+        )
+    with col_info:
+        if n_overrides:
+            st.info(
+                f"{n_overrides} manual override{'s' if n_overrides != 1 else ''} active"
+                " — bracket recalculated"
+            )
+        else:
+            st.caption("Click any expander below to override game predictions")
+
+    build_override_controls(det_result, team_id_to_name, team_id_to_seednum, season)
 
 with tab_advancement:
     st.subheader("Round-by-Round Advancement Probabilities")
