@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 8 (Feature Store) in progress — 08-02 complete (VIF analysis). models/vif_report.json written; SC-2 formally documented.
+**Current focus:** Phase 8 (Feature Store) in progress — 08-01 complete (name-based API), 08-02 complete (VIF analysis). compute_features(team_a, team_b, season) public API created; vif_report.json written.
 
 ## Current Position
 
 Phase: 8 of 10 (Feature Store) — In progress
 Plan: 2 of 5 in phase 08 (08-01 complete, 08-02 complete)
-Status: In progress — 08-02 complete; VIF analysis module created, SC-2 satisfied
-Last activity: 2026-03-04 — Completed 08-02-PLAN.md (VIF analysis + vif_report.json artifact)
+Status: In progress — 08-01 complete (compute_features name API + as_of_date), 08-02 complete (VIF)
+Last activity: 2026-03-04 — Completed 08-01-PLAN.md (name-based feature API, _compute_features_by_id rename, pytest/statsmodels deps)
 
 Progress: [█████████░] 89% (27/30 plans estimated)
 
@@ -150,6 +150,9 @@ Recent decisions affecting current work:
 - [07-03]: XGB and LGB Brier scores hard-coded as constants (0.1908, 0.1931) — no standalone bracket-level JSON artifacts exist for those models; only baseline and ensemble have backtest/*.json files
 - [07-03]: select_best_model() uses round(mean_brier, 4) before min() comparison to avoid floating point noise affecting winner selection
 - [07-03]: Phase 9 artifact loading pattern: load models/selected.json -> read model_artifact_path -> joblib.load() to get TwoTierEnsemble instance
+- [08-01]: as_of_date validated against SELECTION_SUNDAY_DATES.values() (YYYY-MM-DD strings); Torvik snapshots satisfy cutoff by construction — no re-filtering of stats_lookup needed
+- [08-01]: _TEAM_NAME_LOOKUP is a module-level cache populated lazily from team_normalization.parquet (canonical_name, kaggle_name, cbbdata_name only; espn_name excluded per [02-02])
+- [08-01]: compute_features(team_a, team_b, season) is now the public name-based API; _compute_features_by_id(season, id_a, id_b, lookup) is the internal ID-based function used by backtest and simulator
 - [08-02]: variance_inflation_factor() in statsmodels does NOT add an intercept internally — must call add_constant(X, has_constant='add') and use column index i+1 (skip 0=constant); validated by adjt_diff VIF=1.0506
 - [08-02]: barthag_diff VIF=11.2007 formally documented in models/vif_report.json with KEEP_ALL decision — multicollinearity with adjoe_diff/adjde_diff is expected and all models are robust to it per [03-01]
 
@@ -175,6 +178,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:44:00Z
-Stopped at: Completed 08-02-PLAN.md — VIF analysis; `uv run python -m src.models.vif_analysis` prints VIF table and writes models/vif_report.json (barthag_diff VIF=11.2007, KEEP_ALL, SC-2 satisfied)
+Last session: 2026-03-04T14:42:00Z
+Stopped at: Completed 08-01-PLAN.md — name-based compute_features() API; pytest/statsmodels deps added; backtest.py and bracket_schema.py updated to use _compute_features_by_id
 Resume file: None
