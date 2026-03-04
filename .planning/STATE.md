@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 3/4 plans done. Full SVG bracket rendering complete, wired into Streamlit app.
+**Current focus:** Phase 9 (Bracket Visualization UI) COMPLETE — all 4/4 plans done. Full Streamlit app with SVG bracket, advancement probability table, and champion panel wired.
 
 ## Current Position
 
-Phase: 9 of 10 (Bracket Visualization UI) — In Progress
-Plan: 3 of 4 in phase 09 (SVG rendering and champion panel complete)
-Status: Phase 9 plan 03 complete — SVG bracket rendering module built; Bracket tab and Champion tab wired into app.py
-Last activity: 2026-03-04 — Completed 09-03-PLAN.md (SVG bracket rendering + champion panel)
+Phase: 9 of 10 (Bracket Visualization UI) — Phase complete
+Plan: 4 of 4 in phase 09 (Advancement Probabilities table complete)
+Status: Phase 9 complete — all three tabs (Bracket, Advancement Probabilities, Champion) wired into app.py
+Last activity: 2026-03-04 — Completed 09-04-PLAN.md (advancement table with ProgressColumn)
 
-Progress: [█████████░] 96% (32/33 plans estimated)
+Progress: [██████████] 100% (33/33 plans estimated)
 
 ## Performance Metrics
 
@@ -169,6 +169,9 @@ Recent decisions affecting current work:
 - [09-03]: render_bracket_svg_string() calls build_slot_tree() and load_seedings() internally -- callers pass only det_result, layout, team_id_to_name, team_id_to_seednum
 - [09-03]: components.html height = canvas_height + 40 prevents Streamlit 150px default clipping; scrolling=True for full bracket navigation
 - [09-03]: 64/68 unique team names appear in SVG (4 First Four play-in teams share seed positions); 67 win probability values rendered
+- [09-04]: build_advancement_df() iterates all_team_ids (not advancement_probs.keys()) for LEFT JOIN pattern -- ensures First Four losers appear with 0.0% probabilities (research pitfall 4)
+- [09-04]: column_config["SeedNum"] = None hides SeedNum from st.dataframe display while keeping it in DataFrame for default sort order
+- [09-04]: get_round_column_config() uses deferred import of streamlit inside function body -- module safe to import outside Streamlit context
 
 ### Pending Todos
 
@@ -192,6 +195,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:18:22Z
-Stopped at: Completed 09-03-PLAN.md — SVG bracket rendering module and champion panel; Bracket tab and Champion tab fully wired into app.py
+Last session: 2026-03-04T16:22:26Z
+Stopped at: Completed 09-04-PLAN.md — Advancement Probabilities table with ProgressColumn; Phase 9 complete (all 4/4 plans done)
 Resume file: None
