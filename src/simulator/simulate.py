@@ -8,6 +8,12 @@ Supports:
     mode='deterministic'  -- always picks the team with higher win probability
     mode='monte_carlo'    -- 10K+ vectorized runs with pre-computed prob matrix
 
+override_map support (plan 04-05):
+    Pass override_map={slot_id: team_id} to force specific teams to win
+    specific slots. Overridden slots skip the Bernoulli draw / predict_fn call.
+    Downstream slots simulate normally using the forced team as input.
+    Upstream slots (earlier rounds) are NOT affected.
+
 Exports:
     simulate_bracket()    - Main entry point for all simulation modes
 """
@@ -61,8 +67,15 @@ def simulate_bracket(
                       deterministic mode.
         seed:         Random seed for Monte Carlo sampling. Ignored for
                       deterministic mode. Same seed produces identical output.
-        override_map: Dict mapping slot_id -> team_id overrides. Reserved for
-                      plan 04-05 (bracket lock-in). Ignored in this plan.
+        override_map: Dict mapping slot_id -> team_id. Forces the specified
+                      team to win the specified slot in every simulation run.
+                      Overridden slots skip the predict_fn call / Bernoulli
+                      draw entirely. Downstream slots simulate normally using
+                      the forced winner as their input. Upstream slots (earlier
+                      rounds) are NOT affected -- only the overridden slot and
+                      its descendants are changed.
+                      Example: {'R6CH': 1234} forces team 1234 to be champion.
+                      None = no overrides (normal simulation).
         slots_csv:    Path to MNCAATourneySlots.csv. Defaults to
                       bracket_schema.SLOTS_CSV.
         season:       Tournament season year. Default: 2025.
@@ -75,10 +88,13 @@ def simulate_bracket(
             'mode': 'deterministic',
             'season': 2025,
             'slots': {
-                'W16': {'team_id': int, 'win_prob': float, 'round': str},
-                'R1W1': {'team_id': int, 'win_prob': float, 'round': str},
+                'W16': {'team_id': int, 'win_prob': float, 'round': str,
+                        'overridden': bool},
+                'R1W1': {'team_id': int, 'win_prob': float, 'round': str,
+                         'overridden': bool},
                 ...
-                'R6CH': {'team_id': int, 'win_prob': float, 'round': str},
+                'R6CH': {'team_id': int, 'win_prob': float, 'round': str,
+                         'overridden': bool},
             },
             'champion': {
                 'team_id': int,   -- kaggle_team_id of tournament champion
@@ -111,9 +127,34 @@ def simulate_bracket(
         serialization. Total of 67 slot entries for post-2010 seasons.
 
     Raises:
-        ValueError: If mode is unrecognized, or if a team reference cannot
-                    be resolved during slot traversal.
+        ValueError: If mode is unrecognized, if a team reference cannot be
+                    resolved during slot traversal, or if override_map
+                    contains invalid slot_ids or team_ids.
     """
+    # Validate override_map before branching to mode-specific implementation.
+    # This validation is shared by both modes.
+    if override_map is not None:
+        resolved_slots_csv = slots_csv or SLOTS_CSV
+        slot_tree = build_slot_tree(season, resolved_slots_csv)
+        valid_slot_ids = set(slot_tree["slots"].keys())
+        valid_team_ids = set(seedings.values())
+
+        for ov_slot, ov_team in override_map.items():
+            if ov_slot not in valid_slot_ids:
+                raise ValueError(
+                    f"override_map contains invalid slot_id: {ov_slot!r}. "
+                    f"Valid slot_ids for season {season}: "
+                    f"{sorted(valid_slot_ids)[:10]}... "
+                    f"(total {len(valid_slot_ids)})"
+                )
+            if ov_team not in valid_team_ids:
+                raise ValueError(
+                    f"override_map contains invalid team_id: {ov_team!r} "
+                    f"for slot {ov_slot!r}. "
+                    f"Team must be one of the {len(valid_team_ids)} teams "
+                    "in the seedings dict."
+                )
+
     if mode == "monte_carlo":
         return _simulate_monte_carlo(
             seedings=seedings,
@@ -122,6 +163,7 @@ def simulate_bracket(
             season=season,
             n_runs=n_runs,
             seed=seed,
+            override_map=override_map,
         )
     if mode == "deterministic":
         return _simulate_deterministic(
@@ -130,6 +172,7 @@ def simulate_bracket(
             slots_csv=slots_csv or SLOTS_CSV,
             season=season,
             stats_lookup=stats_lookup,
+            override_map=override_map,
         )
     raise ValueError(
         f"Unknown simulation mode: {mode!r}. "
@@ -278,6 +321,7 @@ def _simulate_monte_carlo(
     season: int,
     n_runs: int,
     seed: int | None,
+    override_map: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Internal Monte Carlo bracket simulation.
 
@@ -286,13 +330,20 @@ def _simulate_monte_carlo(
     Bernoulli draws. Returns per-team advancement probabilities and champion
     confidence.
 
+    If override_map is provided, overridden slots are pre-filled before
+    traversal and skipped during traversal. Downstream slots simulate normally
+    using the forced winner. Upstream slots are not affected.
+
     Args:
-        seedings:   Dict mapping seed_label -> kaggle_team_id.
-        predict_fn: Callable(team_a_id, team_b_id) -> float.
-        slots_csv:  Path to MNCAATourneySlots.csv.
-        season:     Tournament season year.
-        n_runs:     Number of Monte Carlo runs.
-        seed:       Random seed for reproducibility. None = non-deterministic.
+        seedings:     Dict mapping seed_label -> kaggle_team_id.
+        predict_fn:   Callable(team_a_id, team_b_id) -> float.
+        slots_csv:    Path to MNCAATourneySlots.csv.
+        season:       Tournament season year.
+        n_runs:       Number of Monte Carlo runs.
+        seed:         Random seed for reproducibility. None = non-deterministic.
+        override_map: Dict mapping slot_id -> team_id. Pre-fills those slots
+                      with the forced team index in all runs; those slots are
+                      skipped during traversal. None = no overrides.
 
     Returns:
         Monte Carlo result dict (see simulate_bracket docstring).
@@ -322,8 +373,20 @@ def _simulate_monte_carlo(
         team_idx = team_to_idx[team_id]
         occupants[seed_label] = np.full(n_runs, team_idx, dtype=np.int32)
 
+    # Step 5b: Pre-fill overridden slots and track which to skip in traversal
+    overridden: set[str] = set()
+    if override_map:
+        for ov_slot, ov_team in override_map.items():
+            occupants[ov_slot] = np.full(n_runs, team_to_idx[ov_team], dtype=np.int32)
+            overridden.add(ov_slot)
+
     # Step 6: Traverse slots in topological order with vectorized Bernoulli draws
     for slot_id in slot_tree["order"]:
+        # Skip overridden slots -- they were pre-filled in Step 5b.
+        # Their forced winners flow naturally to downstream slots.
+        if slot_id in overridden:
+            continue
+
         slot_data = slot_tree["slots"][slot_id]
         strong_ref = slot_data["StrongSeed"]
         weak_ref = slot_data["WeakSeed"]
@@ -401,12 +464,17 @@ def _simulate_deterministic(
     slots_csv: str,
     season: int,
     stats_lookup: dict | None = None,
+    override_map: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Internal deterministic bracket simulation.
 
     Always picks the team with the higher win probability (>= 0.5 from
     predict_fn). Canonical seed ordering is enforced for every predict_fn
     call.
+
+    If override_map is provided, overridden slots skip the predict_fn call
+    and are forced to the specified team winner. Downstream slots simulate
+    normally. Upstream slots are not affected.
 
     Args:
         seedings:     Dict mapping seed_label -> kaggle_team_id.
@@ -417,6 +485,8 @@ def _simulate_deterministic(
         stats_lookup: Optional stats dict from build_stats_lookup(). If provided,
                       the championship_game key is populated with a predicted score.
                       If None, championship_game is set to None.
+        override_map: Dict mapping slot_id -> team_id. Forces the specified
+                      team to win that slot (skips predict_fn). None = no overrides.
 
     Returns:
         Simulation result dict (see simulate_bracket docstring).
@@ -429,10 +499,17 @@ def _simulate_deterministic(
 
     # Step 3: Track winners and win probabilities per slot
     slot_winner: dict[str, int] = {}   # slot_id -> kaggle_team_id of winner
-    slot_prob: dict[str, float] = {}   # slot_id -> win probability of winner
+    slot_prob: dict[str, float | None] = {}  # slot_id -> win prob (None if forced)
+    overridden_slots: set[str] = set(override_map.keys()) if override_map else set()
 
     # Step 4: Traverse slots in topological order
     for slot_id in slot_tree["order"]:
+        # Handle override: force team to win slot, skip predict_fn
+        if slot_id in overridden_slots:
+            slot_winner[slot_id] = override_map[slot_id]  # type: ignore[index]
+            slot_prob[slot_id] = None  # forced winner -- no probability draw
+            continue
+
         slot_data = slot_tree["slots"][slot_id]
         strong_ref = slot_data["StrongSeed"]
         weak_ref = slot_data["WeakSeed"]
@@ -493,22 +570,32 @@ def _simulate_deterministic(
             slot_prob[slot_id] = 1.0 - prob_a_wins
 
     # Step 5: Build output dict with all native Python types
+    # For the champion entry, win_prob may be None if R6CH was overridden.
+    # In that case we report the win_prob as 1.0 (forced win).
+    champ_prob_raw = slot_prob["R6CH"]
+    champ_win_prob = float(champ_prob_raw) if champ_prob_raw is not None else 1.0
+
     result: dict[str, Any] = {
         "mode": "deterministic",
         "season": season,
         "slots": {},
         "champion": {
             "team_id": int(slot_winner["R6CH"]),
-            "win_prob": float(slot_prob["R6CH"]),
+            "win_prob": champ_win_prob,
         },
     }
 
     for slot_id in slot_tree["order"]:
         round_num = slot_round_number(slot_id)
+        is_overridden = slot_id in overridden_slots
+        raw_prob = slot_prob[slot_id]
+        # Forced slots report win_prob=1.0 (team is guaranteed to be there)
+        win_prob_out = float(raw_prob) if raw_prob is not None else 1.0
         result["slots"][slot_id] = {
             "team_id": int(slot_winner[slot_id]),
-            "win_prob": float(slot_prob[slot_id]),
+            "win_prob": win_prob_out,
             "round": ROUND_NAMES.get(round_num, f"Round {round_num}"),
+            "overridden": is_overridden,
         }
 
     # Step 6: Add championship game predicted score if stats_lookup is provided.
@@ -527,10 +614,12 @@ def _simulate_deterministic(
             winner_id = finalist_yz
             loser_id = finalist_wx
 
+        # win_prob_a for score prediction: use 1.0 if champion was forced
+        score_win_prob = float(champion_prob) if champion_prob is not None else 1.0
         result["championship_game"] = predict_championship_score(
             team_a_id=winner_id,
             team_b_id=loser_id,
-            win_prob_a=champion_prob,
+            win_prob_a=score_win_prob,
             stats_lookup=stats_lookup,
             season=season,
         )
@@ -550,10 +639,15 @@ def _simulate_deterministic(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import json
     import time
     from collections import defaultdict
 
-    from src.simulator.bracket_schema import build_predict_fn, load_seedings
+    from src.simulator.bracket_schema import (
+        build_predict_fn,
+        build_team_seed_map,
+        load_seedings,
+    )
 
     print("=" * 60)
     print("simulate.py smoke test")
@@ -563,12 +657,21 @@ if __name__ == "__main__":
     print("\n[1] Loading seedings and predict_fn for 2025...")
     seedings = load_seedings(season=2025)
     predict_fn, stats = build_predict_fn(season=2025)
+    tsm = build_team_seed_map(seedings)
     print(f"  Seedings loaded: {len(seedings)}")
     print(f"  predict_fn ready: {callable(predict_fn)}")
 
-    # Run deterministic simulation
-    print("\n[2] Running deterministic simulation...")
+    # Run deterministic simulation (no override)
+    print("\n[2] Running deterministic simulation (no override)...")
     result = simulate_bracket(seedings, predict_fn, mode="deterministic", season=2025)
+    base_champion = result["champion"]["team_id"]
+    print(f"  Base champion: team_id={base_champion}")
+
+    # Verify all slots have 'overridden' key = False (no overrides applied)
+    assert all(
+        not s.get("overridden", True) for s in result["slots"].values()
+    ), "Baseline run: all slots should have overridden=False"
+    print("  All slots overridden=False -- OK")
 
     # Print bracket by round
     print("\n[3] Bracket results by round:")
@@ -590,18 +693,144 @@ if __name__ == "__main__":
         if slots_in_round:
             print(f"\n  {round_name} ({len(slots_in_round)} games):")
             for slot_id, slot_data in sorted(slots_in_round):
+                ov = " [FORCED]" if slot_data.get("overridden") else ""
                 print(
                     f"    {slot_id:8s}  team={slot_data['team_id']:5d}  "
-                    f"P={slot_data['win_prob']:.4f}"
+                    f"P={slot_data['win_prob']:.4f}{ov}"
                 )
 
     # Print champion
-    print(f"\n[4] Deterministic Champion:")
+    print(f"\n[4] Deterministic Champion (no override):")
     print(f"  team_id  = {result['champion']['team_id']}")
     print(f"  win_prob = {result['champion']['win_prob']:.4f}")
 
-    # Run Monte Carlo simulation
-    print("\n[5] Running Monte Carlo simulation (n_runs=10000, seed=42)...")
+    # ---------------------------------------------------------------------------
+    # Override tests
+    # ---------------------------------------------------------------------------
+    print("\n[5] Override tests:")
+
+    # Find a 16-seed team for "cinderella" override tests
+    sixteen_seed = None
+    for label, tid in seedings.items():
+        if tsm[tid] == 16:
+            sixteen_seed = tid
+            break
+    print(f"  Found 16-seed team: team_id={sixteen_seed}")
+
+    # Test A: Deterministic -- override R6CH with 16-seed
+    print("\n  [5a] Deterministic override: force 16-seed to R6CH...")
+    r_override = simulate_bracket(
+        seedings,
+        predict_fn,
+        mode="deterministic",
+        season=2025,
+        override_map={"R6CH": sixteen_seed},
+    )
+    assert r_override["champion"]["team_id"] == sixteen_seed, (
+        f"Expected champion={sixteen_seed}, got {r_override['champion']['team_id']}"
+    )
+    assert r_override["slots"]["R6CH"].get("overridden") is True, (
+        "R6CH slot should be marked overridden=True"
+    )
+    # Non-overridden slots should be False
+    assert r_override["slots"]["R1W1"].get("overridden") is False, (
+        "R1W1 should not be overridden"
+    )
+    print(f"    Champion = {r_override['champion']['team_id']} (16-seed) -- OK")
+    print(f"    R6CH overridden={r_override['slots']['R6CH']['overridden']} -- OK")
+
+    # Test B: Verify upstream slots (R1W1, R2W1, ...) are NOT changed by R6CH override
+    print("\n  [5b] Upstream unaffected check...")
+    for early_slot in ["R1W1", "R2W1", "R3W1", "R4W1"]:
+        if early_slot in result["slots"] and early_slot in r_override["slots"]:
+            orig_team = result["slots"][early_slot]["team_id"]
+            ov_team = r_override["slots"][early_slot]["team_id"]
+            assert orig_team == ov_team, (
+                f"Slot {early_slot}: upstream result changed by R6CH override! "
+                f"orig={orig_team}, override={ov_team}"
+            )
+    print("    R1W1..R4W1 team_ids unchanged by R6CH override -- OK")
+
+    # Test C: Deterministic -- override R3W1 with a 1-seed
+    # Only R3W1 and its descendants should change; R1W1, R2W1 should NOT change
+    print("\n  [5c] Deterministic override: force 1-seed to R3W1...")
+    one_seed = seedings["W01"]  # West region 1-seed
+    r_r3w1 = simulate_bracket(
+        seedings,
+        predict_fn,
+        mode="deterministic",
+        season=2025,
+        override_map={"R3W1": one_seed},
+    )
+    assert r_r3w1["slots"]["R3W1"].get("overridden") is True, (
+        "R3W1 should be overridden=True"
+    )
+    assert r_r3w1["slots"]["R1W1"].get("overridden", False) is False, (
+        "R1W1 must NOT be overridden when only R3W1 is in override_map"
+    )
+    # R1W1 and R2W1 team winners must match baseline (upstream unaffected)
+    assert r_r3w1["slots"]["R1W1"]["team_id"] == result["slots"]["R1W1"]["team_id"], (
+        "R1W1 winner changed -- upstream contamination detected"
+    )
+    print(f"    R3W1 overridden=True, R1W1 unaffected -- OK")
+
+    # Test D: Monte Carlo -- override R6CH with 16-seed
+    # Champion should be 16-seed with confidence=1.0 (all runs forced)
+    print("\n  [5d] Monte Carlo override: force 16-seed to R6CH (1000 runs)...")
+    mc_override = simulate_bracket(
+        seedings,
+        predict_fn,
+        mode="monte_carlo",
+        n_runs=1000,
+        seed=42,
+        season=2025,
+        override_map={"R6CH": sixteen_seed},
+    )
+    assert mc_override["champion"]["team_id"] == sixteen_seed, (
+        f"MC override: expected champion={sixteen_seed}, "
+        f"got {mc_override['champion']['team_id']}"
+    )
+    assert mc_override["champion"]["confidence"] == 1.0, (
+        f"MC override: expected confidence=1.0 (all runs forced), "
+        f"got {mc_override['champion']['confidence']}"
+    )
+    print(
+        f"    MC champion={mc_override['champion']['team_id']} "
+        f"confidence={mc_override['champion']['confidence']:.0%} -- OK"
+    )
+
+    # Test E: Validation -- invalid slot_id raises ValueError
+    print("\n  [5e] Validation: invalid slot_id raises ValueError...")
+    try:
+        simulate_bracket(
+            seedings,
+            predict_fn,
+            mode="deterministic",
+            season=2025,
+            override_map={"INVALID_SLOT": sixteen_seed},
+        )
+        raise AssertionError("Expected ValueError for invalid slot_id but none raised")
+    except ValueError as e:
+        print(f"    ValueError raised as expected: {str(e)[:60]}... -- OK")
+
+    # Test F: Validation -- invalid team_id raises ValueError
+    print("\n  [5f] Validation: invalid team_id raises ValueError...")
+    try:
+        simulate_bracket(
+            seedings,
+            predict_fn,
+            mode="deterministic",
+            season=2025,
+            override_map={"R6CH": 9999999},
+        )
+        raise AssertionError("Expected ValueError for invalid team_id but none raised")
+    except ValueError as e:
+        print(f"    ValueError raised as expected: {str(e)[:60]}... -- OK")
+
+    # ---------------------------------------------------------------------------
+    # Run Monte Carlo simulation (no override)
+    # ---------------------------------------------------------------------------
+    print("\n[6] Running Monte Carlo simulation (n_runs=10000, seed=42)...")
     mc_start = time.time()
     mc_result = simulate_bracket(
         seedings, predict_fn, mode="monte_carlo", n_runs=10000, seed=42, season=2025
@@ -610,12 +839,12 @@ if __name__ == "__main__":
 
     print(f"  Elapsed: {mc_elapsed:.3f}s")
     champ = mc_result["champion"]
-    print(f"\n[6] Monte Carlo Champion:")
+    print(f"\n[7] Monte Carlo Champion (no override):")
     print(f"  team_id    = {champ['team_id']}")
     print(f"  confidence = {champ['confidence']:.1%}")
 
-    # Print top contenders (teams with highest Final Four advancement prob)
-    print("\n[7] Top 10 contenders by Champion probability:")
+    # Print top contenders (teams with highest Champion probability)
+    print("\n[8] Top 10 contenders by Champion probability:")
     adv = mc_result["advancement_probs"]
     champ_probs = [
         (team_id, probs.get("Champion", 0.0))
@@ -627,7 +856,7 @@ if __name__ == "__main__":
         print(f"  {rank:2d}. team={team_id:5d}  Champion={prob:.2%}")
 
     # Verification
-    print("\n[8] Verification:")
+    print("\n[9] Verification:")
     assert len(result["slots"]) == 67, (
         f"Expected 67 slots, got {len(result['slots'])}"
     )
@@ -636,10 +865,9 @@ if __name__ == "__main__":
     assert mc_result["mode"] == "monte_carlo", "Wrong mode"
     assert mc_result["n_runs"] == 10000, "Wrong n_runs"
     assert 0.0 < mc_result["champion"]["confidence"] <= 1.0, "Bad confidence"
-    print(f"  Monte Carlo mode, n_runs, confidence -- OK")
+    print("  Monte Carlo mode, n_runs, confidence -- OK")
 
     # Test JSON serialization of MC result
-    import json
     json_str = json.dumps(mc_result)
     assert len(json_str) > 100, "JSON output suspiciously short"
     print(f"  JSON serialization: {len(json_str)} chars -- OK")
