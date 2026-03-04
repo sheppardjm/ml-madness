@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 7 IN PROGRESS — model comparison dashboard. Plan 07-01 complete: dashboard module with formatted comparison table. Plans 07-02 (charts) and 07-03 (model selection) remain.
+**Current focus:** Phase 7 IN PROGRESS — model comparison dashboard. Plans 07-01 (comparison table) and 07-02 (charts) complete. Plan 07-03 (model selection + selected.json) remains.
 
 ## Current Position
 
 Phase: 7 of 10 (Model Comparison Dashboard) — In progress
-Plan: 1 of 3 in phase 07 (07-01 complete)
-Status: In progress — 07-01 complete (dashboard module + comparison table)
-Last activity: 2026-03-04 — Completed 07-01-PLAN.md (dashboard module with comparison table)
+Plan: 2 of 3 in phase 07 (07-01, 07-02 complete)
+Status: In progress — 07-02 complete (matplotlib bar chart + Brier heatmap)
+Last activity: 2026-03-04 — Completed 07-02-PLAN.md (visualization charts)
 
-Progress: [████████░░] 80% (24/30 plans estimated)
+Progress: [████████░░] 83% (25/30 plans estimated)
 
 ## Performance Metrics
 
@@ -144,6 +144,9 @@ Recent decisions affecting current work:
 - [07-01]: Dashboard module reads JSON artifacts only — zero ML imports in compare.py; load_comparison_data() is canonical data loader for Phase 7
 - [07-01]: Only baseline and ensemble in comparison table per plan spec — XGB/LGB excluded (no per-round bracket simulation data available from Phase 6 evaluate functions)
 - [07-01]: Upset detection tradeoff trend confirmed: ensemble deficit widens from -23.8pp (2022) to -36.4pp (2025) — ensemble becomes more conservative each year as it refines calibration
+- [07-02]: matplotlib.use("Agg") must be set before pyplot import for headless CLI chart generation; pattern established in plots.py
+- [07-02]: Plot imports placed inside __main__ block (not module top-level) to avoid slow matplotlib load when compare.py is imported as a library — preserves zero-ML-import design from 07-01
+- [07-02]: Heatmap vmin=0.12, vmax=0.25 hard-coded for consistent color scale across runs; covers observed Brier range [0.136, 0.193]
 
 ### Pending Todos
 
@@ -167,6 +170,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T06:35:28Z
-Stopped at: Completed 07-01-PLAN.md — dashboard module + comparison table; `uv run python -m src.dashboard.compare` prints formatted four-section table
+Last session: 2026-03-04T06:38:46Z
+Stopped at: Completed 07-02-PLAN.md — visualization charts; `uv run python -m src.dashboard.compare` now prints table + saves models/per_round_comparison.png and models/brier_heatmap.png
 Resume file: None
