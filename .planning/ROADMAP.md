@@ -235,14 +235,13 @@ Plans:
   3. The bracket layout correctly shows all four regions (East, West, South, Midwest) with rounds progressing from left to right toward the championship
   4. A sidebar or panel shows round-by-round advancement probabilities for all 68 teams as a sortable table
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 09-01: Streamlit app scaffolding (app.py entry point; session state initialization; model loading from models/selected.json; bracket data loading)
-- [ ] 09-02: SVG bracket layout algorithm (coordinate generation for 68-team single-elimination bracket; slot positioning for all four regions and Final Four)
-- [ ] 09-03: SVG bracket rendering (programmatic SVG in st.components.v1.html(); team name and win probability labels per slot; champion highlight)
-- [ ] 09-04: Round-by-round advancement table (Plotly table or st.dataframe showing P(team reaches round) for all 68 teams across all 6 rounds)
-- [ ] 09-05: Champion panel (display predicted champion, confidence percentage, and predicted championship game score prominently)
+- [ ] 09-01-PLAN.md — Streamlit app scaffolding (install deps, model loading, ensemble predict_fn adapter, cached simulations, team name lookup, tab skeleton)
+- [ ] 09-02-PLAN.md — SVG bracket layout algorithm (coordinate generation for 68-team bracket; slot positioning for all four regions, First Four, and Final Four)
+- [ ] 09-03-PLAN.md — SVG bracket rendering + champion panel (programmatic SVG via st.components.v1.html with team names, seeds, win probs, connector lines, champion highlight; champion tab with MC confidence and top contenders)
+- [ ] 09-04-PLAN.md — Advancement probability table (st.dataframe with ProgressColumn showing P(team reaches round) for all 68 teams across 7 round milestones; sortable, searchable)
 
 ---
 
@@ -288,5 +287,5 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
 | 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
 | 8. Feature Store | 4/4 | ✓ Complete | 2026-03-04 |
-| 9. Bracket Visualization UI | 0/5 | Not started | - |
+| 9. Bracket Visualization UI | 0/4 | Not started | - |
 | 10. Interactive Override UI | 0/5 | Not started | - |
