@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
 # MUST be the very first Streamlit command -- before any other st.* calls or imports that trigger st.*
 st.set_page_config(
@@ -6,6 +7,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+import pandas as pd
 
 from src.ui.data_loader import (
     build_ensemble_predict_fn,
@@ -15,6 +18,8 @@ from src.ui.data_loader import (
     run_deterministic,
     run_monte_carlo,
 )
+from src.ui.bracket_layout import compute_bracket_layout
+from src.ui.bracket_svg import render_bracket_svg_string
 
 # --- Session state initialization ---
 if "season" not in st.session_state:
@@ -58,10 +63,72 @@ tab_bracket, tab_advancement, tab_champion = st.tabs(
 )
 
 with tab_bracket:
-    st.info("Bracket visualization will be rendered here (Plan 09-03)")
+    # Compute bracket layout and render SVG
+    layout = compute_bracket_layout(season)
+    svg_string = render_bracket_svg_string(
+        det_result, layout, team_id_to_name, team_id_to_seednum, season
+    )
+    # Wrap SVG in minimal HTML for rendering
+    # CRITICAL: explicit height prevents 150px default clipping (Research pitfall 1)
+    html_string = (
+        f'<html><body style="margin:0; background:#0e1117; overflow:auto;">'
+        f'{svg_string}'
+        f'</body></html>'
+    )
+    components.html(html_string, height=layout["canvas_height"] + 40, scrolling=True)
 
 with tab_advancement:
     st.info("Advancement probability table will be rendered here (Plan 09-04)")
 
 with tab_champion:
-    st.info("Champion panel will be rendered here (Plan 09-04)")
+    # --- Deterministic champion ---
+    st.header(f"Predicted Champion: {champ_name}")
+    st.metric(
+        "Championship Win Probability",
+        f"{champion['win_prob']:.1%}",
+    )
+
+    # --- Monte Carlo confidence ---
+    st.metric(
+        "Monte Carlo Confidence",
+        f"{mc_champ['confidence']:.1%}",
+        help="Fraction of 10,000 simulations where this team wins the tournament",
+    )
+
+    # --- Championship game score (if available) ---
+    champ_game = det_result.get("championship_game")
+    if champ_game is not None:
+        st.subheader("Predicted Championship Game")
+        winner_name = team_id_to_name.get(champ_game.get("winner_id", 0), "Winner")
+        loser_name = team_id_to_name.get(champ_game.get("loser_id", 0), "Runner-up")
+        winner_score = champ_game.get("winner_score", 0)
+        loser_score = champ_game.get("loser_score", 0)
+        st.write(f"**{winner_name}** {winner_score}  vs  {loser_name} {loser_score}")
+    else:
+        st.caption(
+            "Championship game score requires stats_lookup "
+            "(not provided in this session)"
+        )
+
+    # --- Top 10 contenders from Monte Carlo ---
+    st.subheader("Top Championship Contenders (Monte Carlo)")
+    adv_probs = mc_result.get("advancement_probs", {})
+
+    contender_rows = []
+    for team_id, round_probs in adv_probs.items():
+        champ_prob = round_probs.get("Champion", 0.0)
+        if champ_prob > 0:
+            contender_rows.append({
+                "Team": team_id_to_name.get(team_id, str(team_id)),
+                "Seed": team_id_to_seednum.get(team_id, 0),
+                "Champion %": f"{champ_prob:.1%}",
+                "_champ_prob": champ_prob,  # for sorting
+            })
+
+    if contender_rows:
+        contender_rows.sort(key=lambda r: r["_champ_prob"], reverse=True)
+        top10 = contender_rows[:10]
+        df_contenders = pd.DataFrame(top10)[["Team", "Seed", "Champion %"]]
+        st.dataframe(df_contenders, use_container_width=True, hide_index=True)
+    else:
+        st.caption("No contender data available.")
