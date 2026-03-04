@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-02 complete (simulate_bracket deterministic mode)
+**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-04 complete (championship game score predictor)
 
 ## Current Position
 
 Phase: 4 of 10 (Bracket Simulator) — In progress
-Plan: 3 of 6 in phase 04
-Status: 04-03 complete — simulate_bracket() monte_carlo mode with 68x68 prob matrix and vectorized numpy draws
-Last activity: 2026-03-04 — Completed 04-03-PLAN.md (Monte Carlo simulation mode)
+Plan: 4 of 6 in phase 04
+Status: 04-04 complete — predict_championship_score() rule-based score predictor; championship_game key in deterministic output
+Last activity: 2026-03-04 — Completed 04-04-PLAN.md (Championship game score predictor)
 
-Progress: [█████░░░░░] 43% (13/30 plans estimated)
+Progress: [██████░░░░] 47% (14/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,10 +30,10 @@ Progress: [█████░░░░░] 43% (13/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
-| 04-bracket-simulator | 3 (in progress) | ~7 min | ~2 min |
+| 04-bracket-simulator | 4 (in progress) | ~12 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (~6 min), 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min), 04-03 (~2 min)
+- Last 5 plans: 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min), 04-03 (~2 min), 04-04 (~5 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -96,6 +96,10 @@ Recent decisions affecting current work:
 - [04-03]: advancement_probs includes 'Champion' key (alias for R6CH fraction) alongside 'Championship' (championship game slot winner)
 - [04-03]: Monte Carlo champion (team 1222, 31.8% confidence with seed=42, 10K runs) matches deterministic champion -- model self-consistent
 - [04-03]: Performance: 10K runs in 0.21s -- 143x headroom under 30s limit; np.random.default_rng(seed) with PCG64 for reproducibility
+- [04-04]: Rule-based tempo formula sufficient (R^2~0.25 for full regression); TEMPO_COEF=3.43, TEMPO_INTERCEPT=-89.7 from historical championship game analysis 2003-2025 excl. 2020
+- [04-04]: adj_t==0.0 is a sentinel for missing data (per features.py convention) -- treated as fallback trigger alongside key-not-found; HISTORICAL_MEAN_TEMPO=67.0 used
+- [04-04]: championship_game key added only to deterministic mode (not monte_carlo) -- MC produces distribution, not a single game score
+- [04-04]: 2025 deterministic championship: team 1222 wins 72-63 over team 1196 (predicted_total=135, predicted_margin=9)
 
 ### Pending Todos
 
@@ -119,6 +123,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:33:53Z
-Stopped at: Completed 04-03-PLAN.md — simulate_bracket() Monte Carlo mode
+Last session: 2026-03-04T03:41:00Z
+Stopped at: Completed 04-04-PLAN.md — championship game score predictor
 Resume file: None
