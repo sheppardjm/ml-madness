@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 7 COMPLETE — model comparison dashboard done. models/selected.json written; ensemble selected (mean Brier=0.1692). Phase 8 (Feature Store) or Phase 9 (Streamlit UI) next.
+**Current focus:** Phase 8 (Feature Store) in progress — 08-02 complete (VIF analysis). models/vif_report.json written; SC-2 formally documented.
 
 ## Current Position
 
-Phase: 7 of 10 (Model Comparison Dashboard) — COMPLETE
-Plan: 3 of 3 in phase 07 (07-01, 07-02, 07-03 all complete)
-Status: Phase 7 complete — 07-03 written models/selected.json with ensemble as winning model
-Last activity: 2026-03-04 — Completed 07-03-PLAN.md (model selection + selected.json artifact)
+Phase: 8 of 10 (Feature Store) — In progress
+Plan: 2 of 5 in phase 08 (08-01 complete, 08-02 complete)
+Status: In progress — 08-02 complete; VIF analysis module created, SC-2 satisfied
+Last activity: 2026-03-04 — Completed 08-02-PLAN.md (VIF analysis + vif_report.json artifact)
 
-Progress: [█████████░] 87% (26/30 plans estimated)
+Progress: [█████████░] 89% (27/30 plans estimated)
 
 ## Performance Metrics
 
@@ -150,6 +150,8 @@ Recent decisions affecting current work:
 - [07-03]: XGB and LGB Brier scores hard-coded as constants (0.1908, 0.1931) — no standalone bracket-level JSON artifacts exist for those models; only baseline and ensemble have backtest/*.json files
 - [07-03]: select_best_model() uses round(mean_brier, 4) before min() comparison to avoid floating point noise affecting winner selection
 - [07-03]: Phase 9 artifact loading pattern: load models/selected.json -> read model_artifact_path -> joblib.load() to get TwoTierEnsemble instance
+- [08-02]: variance_inflation_factor() in statsmodels does NOT add an intercept internally — must call add_constant(X, has_constant='add') and use column index i+1 (skip 0=constant); validated by adjt_diff VIF=1.0506
+- [08-02]: barthag_diff VIF=11.2007 formally documented in models/vif_report.json with KEEP_ALL decision — multicollinearity with adjoe_diff/adjde_diff is expected and all models are robust to it per [03-01]
 
 ### Pending Todos
 
@@ -173,6 +175,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T06:46:00Z
-Stopped at: Completed 07-03-PLAN.md — model selection artifact; `uv run python -m src.dashboard.compare` produces table + 2 PNGs + models/selected.json (ensemble, mean Brier=0.1692)
+Last session: 2026-03-04T14:44:00Z
+Stopped at: Completed 08-02-PLAN.md — VIF analysis; `uv run python -m src.models.vif_analysis` prints VIF table and writes models/vif_report.json (barthag_diff VIF=11.2007, KEEP_ALL, SC-2 satisfied)
 Resume file: None
