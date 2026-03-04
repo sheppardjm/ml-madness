@@ -21,10 +21,10 @@
 
 ### Simulation
 
-- [ ] **SIML-01**: Monte Carlo bracket simulation (10K+ runs) propagating probabilities through all 67 games
-- [ ] **SIML-02**: Champion prediction with confidence percentage
-- [ ] **SIML-03**: Predicted championship game score
-- [ ] **SIML-04**: Round-by-round advancement probabilities for each team
+- [x] **SIML-01**: Monte Carlo bracket simulation (10K+ runs) propagating probabilities through all 67 games
+- [x] **SIML-02**: Champion prediction with confidence percentage
+- [x] **SIML-03**: Predicted championship game score
+- [x] **SIML-04**: Round-by-round advancement probabilities for each team
 
 ### Backtesting
 
@@ -77,10 +77,10 @@
 | MODL-01 | Phase 3 | Complete |
 | MODL-03 | Phase 3 | Complete |
 | MODL-04 | Phase 3 | Complete |
-| SIML-01 | Phase 4 | Pending |
-| SIML-02 | Phase 4 | Pending |
-| SIML-03 | Phase 4 | Pending |
-| SIML-04 | Phase 4 | Pending |
+| SIML-01 | Phase 4 | Complete |
+| SIML-02 | Phase 4 | Complete |
+| SIML-03 | Phase 4 | Complete |
+| SIML-04 | Phase 4 | Complete |
 | BACK-01 | Phase 5 | Pending |
 | BACK-02 | Phase 5 | Pending |
 | MODL-02 | Phase 6 | Pending |
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-04 after Phase 3 completion — MODL-01, MODL-03, MODL-04 marked Complete*
+*Last updated: 2026-03-04 after Phase 4 completion — SIML-01, SIML-02, SIML-03, SIML-04 marked Complete*

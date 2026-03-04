@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Historical Data Pipeline** - Ingest, clean, and normalize 20+ years of tournament data from Kaggle and resolve team name conflicts across all sources
 - [x] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
 - [x] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
-- [ ] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
+- [x] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
 - [ ] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
 - [ ] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
 - [ ] **Phase 7: Model Comparison Dashboard** - Produce a side-by-side performance table (baseline vs. ensemble) across all backtest years with per-round and upset-detection metrics
@@ -111,15 +111,15 @@ Plans:
   4. The champion prediction includes a predicted championship game score (point total and margin)
   5. Passing an override map `{slot_id: team_id}` re-runs simulation from that slot forward, producing different downstream results
 
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 04-01: Bracket slot schema design (define slot addressing: R1_W01 through championship; parent-child slot relationships; First Four slot handling)
-- [ ] 04-02: Deterministic bracket fill (walk slot tree from First Four to championship; record winner and probability at each slot)
-- [ ] 04-03: Monte Carlo simulation (Bernoulli draw per game in each run; aggregate per-team advancement counts; compute confidence percentages)
-- [ ] 04-04: Championship score prediction (secondary linear model or rule-based estimator; output predicted total points and margin)
-- [ ] 04-05: Override map injection (accept override dict; re-run simulation from overridden slots; verify downstream slots update correctly)
-- [ ] 04-06: Monte Carlo calibration validation (assert upset rate sanity check; log warning if fewer than 5% of runs include a 10+ seed in Sweet 16)
+- [x] 04-01-PLAN.md — Bracket slot schema (slot tree from Kaggle CSV, seedings loader, predict_fn builder, team-seed map)
+- [x] 04-02-PLAN.md — Deterministic bracket fill (topological slot tree traversal, 67 slots with winners and probabilities)
+- [x] 04-03-PLAN.md — Monte Carlo simulation (pre-computed 68x68 prob matrix, vectorized numpy Bernoulli draws, advancement probs)
+- [x] 04-04-PLAN.md — Championship score prediction (rule-based tempo formula, integrated into deterministic output)
+- [x] 04-05-PLAN.md — Override map injection (force winners in both modes, downstream cascade, upstream unaffected)
+- [x] 04-06-PLAN.md — Calibration validation (upset rate check, all 5 success criteria verified)
 
 ---
 
@@ -286,7 +286,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 1. Historical Data Pipeline | 3/3 | ✓ Complete | 2026-03-02 |
 | 2. Current Season and Bracket Data | 2/2 | ✓ Complete | 2026-03-03 |
 | 3. Baseline Model and Temporal Validation | 4/4 | ✓ Complete | 2026-03-04 |
-| 4. Bracket Simulator | 0/6 | Not started | - |
+| 4. Bracket Simulator | 6/6 | ✓ Complete | 2026-03-04 |
 | 5. Backtesting Harness | 0/5 | Not started | - |
 | 6. Ensemble Models | 0/5 | Not started | - |
 | 7. Model Comparison Dashboard | 0/3 | Not started | - |
