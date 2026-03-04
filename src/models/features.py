@@ -156,8 +156,11 @@ def build_stats_lookup(
 
     conn.close()
 
-    # For 2025: merge in current_season_stats.parquet for fresher stats
-    # (Phase 2 used the archive snapshot which may differ slightly)
+    # For 2025: overlay current_season_stats.parquet for fresher stats.
+    # current_season_stats may not cover all tournament teams (e.g., First Four
+    # play-in teams like St. Francis PA may be absent from the cbbdata snapshot).
+    # Use current stats as the primary source for teams it covers, but preserve
+    # historical 2025 rows for teams NOT present in current_season_stats.
     if current_parquet.exists():
         conn2 = duckdb.connect()
         current_df = conn2.execute(
@@ -167,9 +170,20 @@ def build_stats_lookup(
         ).df()
         conn2.close()
 
-        # Replace 2025 rows in hist_df with current_season_stats data
+        # Determine which teams are covered in current_season_stats for 2025
+        current_2025_ids = set(current_df["kaggle_team_id"].dropna().astype(int).tolist())
+
+        # Keep: (a) all non-2025 historical rows, and
+        #        (b) 2025 historical rows for teams NOT in current_season_stats
+        # Then add all current_season_stats rows (the freshest data for covered teams)
         hist_no_2025 = hist_df[hist_df["season"] != 2025]
-        hist_df = pd.concat([hist_no_2025, current_df], ignore_index=True)
+        hist_2025_fallback = hist_df[
+            (hist_df["season"] == 2025)
+            & (~hist_df["kaggle_team_id"].isin(current_2025_ids))
+        ]
+        hist_df = pd.concat(
+            [hist_no_2025, hist_2025_fallback, current_df], ignore_index=True
+        )
 
     # Merge seeds to get seed_num for tournament teams
     # Non-tournament teams will have seed_num = NaN (excluded from matchup lookups)
