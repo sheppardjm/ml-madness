@@ -136,18 +136,34 @@ def build_ensemble_predict_fn(_artifact: dict, season: int = 2025):
     return predict_fn
 
 
-@st.cache_data
-def run_deterministic(_predict_fn, _seedings: dict, season: int = 2025) -> dict:
+@st.cache_data(hash_funcs={dict: lambda d: str(sorted(d.items()))})
+def run_deterministic(
+    _predict_fn,
+    _seedings: dict,
+    season: int = 2025,
+    override_map: dict | None = None,
+) -> dict:
     """Run deterministic bracket simulation with caching.
 
     Calls simulate_bracket() with mode='deterministic'. The result is cached
     so reruns are instant. stats_lookup is NOT passed (championship_game will
     be None; acceptable for bracket display).
 
+    The override_map parameter is included in the cache key via hash_funcs
+    so that different override configurations produce different cached results.
+    Empty dict is normalized to None before passing to simulate_bracket() to
+    avoid unnecessary validation overhead in the simulator when no overrides
+    exist (per research pitfall 4).
+
     Args:
         _predict_fn: predict_fn callable (underscore-prefix prevents Streamlit hashing).
         _seedings: Seedings dict from load_seedings() (underscore-prefix prevents hashing).
         season: Tournament season year. Default: 2025.
+        override_map: Dict mapping slot_id -> team_id for forced winners, or None.
+            Must be a regular (non-underscore) parameter so Streamlit includes it in
+            the cache key. hash_funcs on the decorator handles dict hashing.
+            Example: {'R6CH': 1234} forces team 1234 to be champion.
+            None or empty dict = no overrides (normal simulation).
 
     Returns:
         Deterministic simulation result dict with 'mode', 'season', 'slots', 'champion',
@@ -158,21 +174,29 @@ def run_deterministic(_predict_fn, _seedings: dict, season: int = 2025) -> dict:
         predict_fn=_predict_fn,
         mode="deterministic",
         season=season,
+        override_map=override_map or None,
     )
 
 
-@st.cache_data
+@st.cache_data(hash_funcs={dict: lambda d: str(sorted(d.items()))})
 def run_monte_carlo(
     _predict_fn,
     _seedings: dict,
     season: int = 2025,
     n_runs: int = 10000,
     seed: int = 42,
+    override_map: dict | None = None,
 ) -> dict:
     """Run Monte Carlo bracket simulation with caching.
 
     Calls simulate_bracket() with mode='monte_carlo'. The result is cached
     so reruns are instant (10K runs takes ~0.2s but only happens once per session).
+
+    The override_map parameter is included in the cache key via hash_funcs
+    so that different override configurations produce different cached results.
+    Empty dict is normalized to None before passing to simulate_bracket() to
+    avoid unnecessary validation overhead in the simulator when no overrides
+    exist (per research pitfall 4).
 
     Args:
         _predict_fn: predict_fn callable (underscore-prefix prevents Streamlit hashing).
@@ -180,6 +204,11 @@ def run_monte_carlo(
         season: Tournament season year. Default: 2025.
         n_runs: Number of Monte Carlo simulation runs. Default: 10000.
         seed: Random seed for reproducibility. Default: 42.
+        override_map: Dict mapping slot_id -> team_id for forced winners, or None.
+            Must be a regular (non-underscore) parameter so Streamlit includes it in
+            the cache key. hash_funcs on the decorator handles dict hashing.
+            Example: {'R6CH': 1234} forces team 1234 to be champion.
+            None or empty dict = no overrides (normal simulation).
 
     Returns:
         Monte Carlo simulation result dict with 'mode', 'season', 'n_runs', 'champion',
@@ -192,6 +221,7 @@ def run_monte_carlo(
         n_runs=n_runs,
         seed=seed,
         season=season,
+        override_map=override_map or None,
     )
 
 
