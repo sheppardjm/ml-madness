@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 ## Current Position
 
-Phase: 8 of 10 (Feature Store) — In progress
-Plan: 2 of 5 in phase 08 (08-01 complete, 08-02 complete)
-Status: In progress — 08-01 complete (compute_features name API + as_of_date), 08-02 complete (VIF)
-Last activity: 2026-03-04 — Completed 08-01-PLAN.md (name-based feature API, _compute_features_by_id rename, pytest/statsmodels deps)
+Phase: 8 of 10 (Feature Store) — Complete
+Plan: 3 of 3 in phase 08 (08-01 complete, 08-02 complete, 08-03 complete)
+Status: Phase 8 complete — all three plans done; 22-test pytest suite passing
+Last activity: 2026-03-04 — Completed 08-03-PLAN.md (pytest suite: SC-1 through SC-4 verified)
 
-Progress: [█████████░] 89% (27/30 plans estimated)
+Progress: [█████████░] 91% (28/30 plans estimated)
 
 ## Performance Metrics
 
@@ -155,6 +155,9 @@ Recent decisions affecting current work:
 - [08-01]: compute_features(team_a, team_b, season) is now the public name-based API; _compute_features_by_id(season, id_a, id_b, lookup) is the internal ID-based function used by backtest and simulator
 - [08-02]: variance_inflation_factor() in statsmodels does NOT add an intercept internally — must call add_constant(X, has_constant='add') and use column index i+1 (skip 0=constant); validated by adjt_diff VIF=1.0506
 - [08-02]: barthag_diff VIF=11.2007 formally documented in models/vif_report.json with KEEP_ALL decision — multicollinearity with adjoe_diff/adjde_diff is expected and all models are robust to it per [03-01]
+- [08-03]: seed_diff returns int (not float) from _compute_features_by_id — seed_num stored as int in stats_lookup; isinstance check must be (int, float) not strictly float
+- [08-03]: Plan-specified team IDs Houston=1220, UCLA=1437 are wrong (map to Hofstra and Villanova); correct IDs are Houston=1222, UCLA=1417; always verify ID-to-name mapping from team_normalization.parquet
+- [08-03]: Phase 8 pytest suite: 22 tests, session-scoped stats_lookup (built once), autouse reset_name_cache fixture; `uv run pytest tests/ -v` is canonical verification command for feature store
 
 ### Pending Todos
 
@@ -178,6 +181,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T14:42:00Z
-Stopped at: Completed 08-01-PLAN.md — name-based compute_features() API; pytest/statsmodels deps added; backtest.py and bracket_schema.py updated to use _compute_features_by_id
+Last session: 2026-03-04T14:48:54Z
+Stopped at: Completed 08-03-PLAN.md — pytest suite (22 tests) for feature store; all SC-1 through SC-4 criteria verified
 Resume file: None
