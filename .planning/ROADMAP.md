@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Historical Data Pipeline** - Ingest, clean, and normalize 20+ years of tournament data from Kaggle and resolve team name conflicts across all sources
 - [x] **Phase 2: Current Season and Bracket Data** - Pull 2025-26 season stats from CBBpy/cbbdata and wire up the ESPN auto-fetch pipeline for Selection Sunday
-- [ ] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
+- [x] **Phase 3: Baseline Model and Temporal Validation** - Train a logistic regression baseline with walk-forward temporal CV and establish Brier score / log-loss as the evaluation standard
 - [ ] **Phase 4: Bracket Simulator** - Build deterministic and Monte Carlo bracket simulation over all 67 tournament games with slot-addressed bracket JSON output
 - [ ] **Phase 5: Backtesting Harness** - Replay the feature-to-simulator pipeline against 2022–2025 tournament snapshots to validate the baseline and surface calibration issues
 - [ ] **Phase 6: Ensemble Models** - Add XGBoost and LightGBM base models, stack them with logistic regression as meta-learner, and calibrate ensemble output
@@ -86,12 +86,13 @@ Plans:
   3. Brier score and log-loss are computed and printed for each holdout year — a chalk-only model would score ~0.23 Brier; the baseline must score below that
   4. The model produces calibrated probabilities (neither team is assigned 90%+ win probability in a matchup between top-10 ranked opponents)
 
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [ ] 03-01-PLAN.md — Historical Torvik ratings fetch (2003-2025 via cbbdata API) + inline compute_features() and build_matchup_dataset() for differential feature engineering
 - [ ] 03-02-PLAN.md — Walk-forward temporal CV harness (year-grouped splits for 2022-2025) + logistic regression training with Optuna hyperparameter sweep + joblib model save
 - [ ] 03-03-PLAN.md — Brier score and log-loss evaluation pipeline with chalk comparison table + calibration curve plot + overconfidence check for top-seed matchups
+- [ ] 03-04-PLAN.md — Gap closure: isotonic calibration to eliminate overconfident predictions (P > 0.90) for top-10-seeded matchups
 
 ---
 
@@ -284,7 +285,7 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 |-------|----------------|--------|-----------|
 | 1. Historical Data Pipeline | 3/3 | ✓ Complete | 2026-03-02 |
 | 2. Current Season and Bracket Data | 2/2 | ✓ Complete | 2026-03-03 |
-| 3. Baseline Model and Temporal Validation | 0/3 | Planned | - |
+| 3. Baseline Model and Temporal Validation | 4/4 | ✓ Complete | 2026-03-04 |
 | 4. Bracket Simulator | 0/6 | Not started | - |
 | 5. Backtesting Harness | 0/5 | Not started | - |
 | 6. Ensemble Models | 0/5 | Not started | - |

@@ -14,10 +14,10 @@
 
 ### Modeling
 
-- [ ] **MODL-01**: Logistic regression baseline model trained on efficiency differentials
+- [x] **MODL-01**: Logistic regression baseline model trained on efficiency differentials
 - [ ] **MODL-02**: XGBoost + LightGBM stacking ensemble producing calibrated win probabilities
-- [ ] **MODL-03**: Walk-forward temporal validation (train on years 1–N, test on year N+1)
-- [ ] **MODL-04**: Model evaluation using Brier score and log-loss (not just accuracy)
+- [x] **MODL-03**: Walk-forward temporal validation (train on years 1–N, test on year N+1)
+- [x] **MODL-04**: Model evaluation using Brier score and log-loss (not just accuracy)
 
 ### Simulation
 
@@ -74,9 +74,9 @@
 | DATA-03 | Phase 1 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Complete |
-| MODL-01 | Phase 3 | Pending |
-| MODL-03 | Phase 3 | Pending |
-| MODL-04 | Phase 3 | Pending |
+| MODL-01 | Phase 3 | Complete |
+| MODL-03 | Phase 3 | Complete |
+| MODL-04 | Phase 3 | Complete |
 | SIML-01 | Phase 4 | Pending |
 | SIML-02 | Phase 4 | Pending |
 | SIML-03 | Phase 4 | Pending |
@@ -96,4 +96,4 @@
 
 ---
 *Requirements defined: 2026-03-02*
-*Last updated: 2026-03-03 after Phase 2 completion — DATA-02, DATA-04 marked Complete*
+*Last updated: 2026-03-04 after Phase 3 completion — MODL-01, MODL-03, MODL-04 marked Complete*
