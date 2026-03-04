@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 6 of 10 (Ensemble Models) — In progress
-Plan: 1 of 5 in phase 06 (06-01 now formally complete with SUMMARY)
-Status: 06-01 complete — XGBoost Optuna sweep, best Brier=0.1908 (n_estimators=98, max_depth=2), xgb_params.json saved; 06-02 (LightGBM) also complete
-Last activity: 2026-03-04 — Completed 06-01-PLAN.md (XGBoost training pipeline)
+Plan: 3 of 5 in phase 06 (06-03 complete with SUMMARY)
+Status: 06-03 complete — TwoTierEnsemble stacking ensemble built; OOF Brier=0.1672 vs baseline 0.1900 (-0.0228 improvement); ensemble.joblib saved
+Last activity: 2026-03-04 — Completed 06-03-PLAN.md (stacking ensemble assembly)
 
-Progress: [████████░░] 67% (20/30 plans estimated)
+Progress: [████████░░] 70% (21/30 plans estimated)
 
 ## Performance Metrics
 
@@ -32,7 +32,7 @@ Progress: [████████░░] 67% (20/30 plans estimated)
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
 | 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
 | 05-backtesting-harness | 3 (complete) | ~7 min | ~2.3 min |
-| 06-ensemble-models | 2 so far | ~4 min | ~2 min |
+| 06-ensemble-models | 3 so far | ~8 min | ~2.7 min |
 
 **Recent Trend:**
 - Last 5 plans: 05-01 (~2 min), 05-02 (~3 min), 05-03 (~2 min), 06-01 (~2 min), 06-02 (~2 min)
@@ -129,6 +129,11 @@ Recent decisions affecting current work:
 - [06-02]: Optuna found num_leaves=12 (far below max 60) -- confirms small dataset needs very shallow trees; complexity constraint was correct
 - [06-02]: class_weight='balanced' for LightGBM (not scale_pos_weight which is XGBoost); verbose=-1 for LightGBM (not verbosity=0 which is XGBoost)
 - [06-02]: arm64 libomp fix: Intel Homebrew at /usr/local has x86_64 libomp; arm64 Python (uv-managed) needs arm64 libomp; solution: copy from Adobe Acrobat's bundled arm64 libomp to /Users/Sheppardjm/.local/share/uv/python/cpython-3.12.12-macos-aarch64-none/lib/libomp.dylib
+- [06-03]: Manual OOF temporal stacking must be used instead of sklearn StackingClassifier -- walk_forward_splits() produces non-partition (prefix) splits that trigger ValueError in sklearn's cross_val_predict() partition check (GitHub #32614)
+- [06-03]: TwoTierEnsemble.predict_proba() must take ALREADY-SCALED features (caller scales externally); the ensemble stores scaler for reference only -- prevents double-scaling when backtest harness applies scaler
+- [06-03]: save_artifact() pattern required for any class saved via joblib from __main__: re-import from stable module path via importlib before dump() to fix __main__.TwoTierEnsemble -> src.models.ensemble.TwoTierEnsemble pickle path
+- [06-03]: LR base model OOF predictions must go through ClippedCalibrator before meta-learner training -- ensures meta-learner learns from calibrated (production-consistent) signals, not raw LR outputs
+- [06-03]: OOF Ensemble Brier=0.1672 (XGB=1.26, LGB=0.92, LR=1.70 meta coefficients) -- LR base model weighted highest in meta-learner; stacking beats all individual models and the 0.1900 baseline by 12% relative
 
 ### Pending Todos
 
@@ -152,6 +157,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:48:18Z
-Stopped at: Completed 06-01-PLAN.md — XGBoost Optuna sweep pipeline, xgb_params.json saved, mean Brier=0.1908 vs LR baseline 0.1900
+Last session: 2026-03-04T05:56:57Z
+Stopped at: Completed 06-03-PLAN.md — TwoTierEnsemble stacking ensemble; OOF Brier=0.1672 vs baseline 0.1900; ensemble.joblib saved
 Resume file: None
