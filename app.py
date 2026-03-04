@@ -26,7 +26,12 @@ from src.ui.advancement_table import build_advancement_df, get_round_column_conf
 if "season" not in st.session_state:
     st.session_state.season = 2025
 
+if "override_map" not in st.session_state:
+    st.session_state["override_map"] = {}
+
 season = st.session_state.season
+override_map = st.session_state.get("override_map", {})
+_override_arg = override_map if override_map else None
 
 # --- Load data (all cached) ---
 artifact, model_meta = load_model()
@@ -35,8 +40,8 @@ predict_fn = build_ensemble_predict_fn(artifact, season)
 team_id_to_name, team_id_to_seed, team_id_to_seednum = load_team_info(season)
 
 # --- Run simulations (cached) ---
-det_result = run_deterministic(predict_fn, seedings, season)
-mc_result = run_monte_carlo(predict_fn, seedings, season)
+det_result = run_deterministic(predict_fn, seedings, season, override_map=_override_arg)
+mc_result = run_monte_carlo(predict_fn, seedings, season, override_map=_override_arg)
 
 # --- Sidebar ---
 with st.sidebar:
@@ -55,6 +60,10 @@ with st.sidebar:
     mc_champ_name = team_id_to_name.get(mc_champ["team_id"], str(mc_champ["team_id"]))
     st.metric("MC Champion", mc_champ_name)
     st.caption(f"Confidence: {mc_champ['confidence']:.1%} (10K runs)")
+
+    if override_map:
+        st.divider()
+        st.warning(f"{len(override_map)} manual override(s) active")
 
 # --- Main content with tabs ---
 st.title("March Madness 2026 Bracket Predictions")
