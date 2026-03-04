@@ -20,6 +20,7 @@ from src.ui.data_loader import (
 )
 from src.ui.bracket_layout import compute_bracket_layout
 from src.ui.bracket_svg import render_bracket_svg_string
+from src.ui.advancement_table import build_advancement_df, get_round_column_config
 
 # --- Session state initialization ---
 if "season" not in st.session_state:
@@ -78,7 +79,36 @@ with tab_bracket:
     components.html(html_string, height=layout["canvas_height"] + 40, scrolling=True)
 
 with tab_advancement:
-    st.info("Advancement probability table will be rendered here (Plan 09-04)")
+    st.subheader("Round-by-Round Advancement Probabilities")
+    st.caption("Based on 10,000 Monte Carlo simulations. Click any column header to sort.")
+
+    all_team_ids = list(seedings.values())
+    adv_df = build_advancement_df(mc_result, team_id_to_name, team_id_to_seed, all_team_ids)
+
+    # Configure ProgressColumn for visual probability bars + hide SeedNum
+    column_config = get_round_column_config()
+
+    st.dataframe(
+        adv_df,
+        column_config=column_config,
+        hide_index=True,
+        use_container_width=True,
+        height=800,  # Show many rows without excessive scrolling
+    )
+
+    # Summary stats below the table
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        n_teams_ff = len(adv_df[adv_df["Final Four"] > 0.0])
+        st.metric("Teams with Final Four chance", n_teams_ff)
+    with col2:
+        n_teams_champ = len(adv_df[adv_df["Champion"] > 0.0])
+        st.metric("Teams with Champion chance", n_teams_champ)
+    with col3:
+        top_champ = adv_df.iloc[0]
+        st.metric("Top Champion Probability",
+                  f"{top_champ['Champion']:.1%}",
+                  delta=top_champ["Team"])
 
 with tab_champion:
     # --- Deterministic champion ---
