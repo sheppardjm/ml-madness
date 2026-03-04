@@ -1,0 +1,21 @@
+{
+  "selected_model": "ensemble",
+  "selection_criterion": "lowest mean Brier score across 2022-2025 holdout years",
+  "mean_brier": 0.1692,
+  "brier_scores": {
+    "baseline": 0.19,
+    "xgb": 0.1908,
+    "lgb": 0.1931,
+    "ensemble": 0.1692
+  },
+  "model_artifact_path": "models/ensemble.joblib",
+  "model_type": "TwoTierEnsemble",
+  "evaluation_years": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "notes": "XGB and LGB Brier scores from Phase 6 per-model backtests. Baseline and ensemble Brier from backtest/ JSON artifacts. Ensemble wins by 11% relative improvement over logistic baseline.",
+  "generated_at": "2026-03-04"
+}
