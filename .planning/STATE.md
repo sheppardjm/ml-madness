@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 1/4 plans done. Streamlit scaffold with model loading, ensemble predict_fn, and cached simulations complete.
+**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 2/4 plans done. SVG bracket coordinate layout engine complete.
 
 ## Current Position
 
 Phase: 9 of 10 (Bracket Visualization UI) — In Progress
-Plan: 1 of 4 in phase 09 (scaffold complete)
-Status: Phase 9 plan 01 complete — Streamlit app launches, model loads, simulations cached, tab skeleton ready
-Last activity: 2026-03-04 — Completed 09-01-PLAN.md (Streamlit scaffold)
+Plan: 2 of 4 in phase 09 (coordinate layout complete)
+Status: Phase 9 plan 02 complete — All 67 slot coordinates mapped, 66 connector lines generated, smoke test green
+Last activity: 2026-03-04 — Completed 09-02-PLAN.md (bracket coordinate layout algorithm)
 
-Progress: [█████████░] 94% (30/32 plans estimated)
+Progress: [█████████░] 95% (31/32 plans estimated)
 
 ## Performance Metrics
 
@@ -163,6 +163,9 @@ Recent decisions affecting current work:
 - [09-01]: streamlit's pandas<3 metadata constraint bypassed via [tool.uv] override-dependencies = ["pandas>=3.0.1"]; pandas 3.x is runtime-compatible with streamlit 1.55.0; requires-python narrowed to >=3.12,<3.14 and environments=darwin to scope lockfile
 - [09-01]: TwoTierEnsemble predict_fn pattern: scaler.transform() applied INSIDE predict_fn closure (before predict_proba), NOT inside predict_proba — prevents double-scaling per [06-03] canonical call pattern
 - [09-01]: load_team_info() queries seeds.parquet for TeamName (canonical display name source) — 68 teams per season including First Four teams
+- [09-02]: NCAA bracket seeding structure (R2W1 fed by R1W1+R1W8, not adjacent R1 slots) causes parent-centering formula to collapse all R2-R4 y-values to same position — use doubling-spacing formula: spacing=base*(2^(r-1)), y=s*spacing+(spacing-BOX_HEIGHT)//2
+- [09-02]: bracket is left-right symmetric (R4W1.y == R4Y1.y, R4X1.y == R4Z1.y) so centering formula also collapses R5WX/R5YZ/R6CH to same y — fix: place R5WX at upper R4 y-level, R5YZ at lower R4 y-level, R6CH mathematically between them
+- [09-02]: canvas width 2030px (slightly >2000 suggested in plan) — all 67 slots fit without overlap; `uv run python` fails on this project due to streamlit/pandas conflict; use `.venv/bin/python` directly
 
 ### Pending Todos
 
@@ -186,6 +189,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:08:37Z
-Stopped at: Completed 09-01-PLAN.md — Streamlit scaffold with model loading, ensemble predict_fn, cached simulations, team info lookup
+Last session: 2026-03-04T16:11:28Z
+Stopped at: Completed 09-02-PLAN.md — SVG bracket coordinate layout engine; 67 slots, 66 connectors, zero overlaps
 Resume file: None
