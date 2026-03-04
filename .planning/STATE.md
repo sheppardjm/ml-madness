@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 4 IN PROGRESS — bracket simulation infrastructure; 04-05 complete (override_map bracket lock-in)
+**Current focus:** Phase 4 COMPLETE — bracket simulation infrastructure all 6 plans done; ready for Phase 5 (ensemble model / MC calibration)
 
 ## Current Position
 
-Phase: 4 of 10 (Bracket Simulator) — In progress
-Plan: 5 of 6 in phase 04
-Status: 04-05 complete — override_map={slot_id: team_id} forces teams into slots in both deterministic and monte_carlo modes
-Last activity: 2026-03-04 — Completed 04-05-PLAN.md (Override map bracket lock-in)
+Phase: 4 of 10 (Bracket Simulator) — Complete
+Plan: 6 of 6 in phase 04 (phase complete)
+Status: 04-06 complete — Phase 4 integration validation: 5/5 success criteria PASS; upset rate 73.0%, championship 72-63
+Last activity: 2026-03-04 — Completed 04-06-PLAN.md (Phase 4 integration validation)
 
-Progress: [██████░░░░] 50% (15/30 plans estimated)
+Progress: [███████░░░] 53% (16/30 plans estimated)
 
 ## Performance Metrics
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░] 50% (15/30 plans estimated)
 | 01-historical-data-pipeline | 3 | ~70 min | ~23 min |
 | 02-current-season-and-bracket-data | 2 | ~27 min | ~14 min |
 | 03-baseline-model-and-temporal-validation | 4 | ~29 min | ~7 min |
-| 04-bracket-simulator | 5 (in progress) | ~15 min | ~3 min |
+| 04-bracket-simulator | 6 (complete) | ~17 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-04 (~12 min), 04-01 (~2 min), 04-02 (~3 min), 04-03 (~2 min), 04-04 (~5 min)
+- Last 5 plans: 04-02 (~3 min), 04-03 (~2 min), 04-04 (~5 min), 04-05 (~3 min), 04-06 (~2 min)
 - Trend: Well-scoped plans with clear prior context execute in 5-15 min; API/library compat issues add 5-10 min
 
 *Updated after each plan completion*
@@ -105,6 +105,9 @@ Recent decisions affecting current work:
 - [04-05]: MC override: pre-fill occupants dict before traversal; overridden set tracks which to skip -- downstream sees forced winner naturally
 - [04-05]: Upstream slots (earlier rounds) are NOT changed by downstream overrides -- only overridden slot and its descendants affected
 - [04-05]: championship_game score prediction uses win_prob=1.0 when R6CH is forced (None champion_prob guard added)
+- [04-06]: Upset rate 73.0% using complement formula P(at least one 10+ seed in Sweet 16) -- ClippedCalibrator allows sufficient upset probability; no overconfidence concern
+- [04-06]: check_upset_rate() uses complement formula (1 - product(1-p_i)) not simple sum -- mathematically correct for independent events
+- [04-06]: validate_phase4() is Phase 4 integration test callable -- use for regression testing before Phase 5/6 changes
 
 ### Pending Todos
 
@@ -128,6 +131,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T03:44:08Z
-Stopped at: Completed 04-05-PLAN.md — override_map bracket lock-in
+Last session: 2026-03-04T03:48:15Z
+Stopped at: Completed 04-06-PLAN.md — Phase 4 integration validation (5/5 criteria PASS)
 Resume file: None
