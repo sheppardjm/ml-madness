@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 2/4 plans done. SVG bracket coordinate layout engine complete.
+**Current focus:** Phase 9 (Bracket Visualization UI) in progress — 3/4 plans done. Full SVG bracket rendering complete, wired into Streamlit app.
 
 ## Current Position
 
 Phase: 9 of 10 (Bracket Visualization UI) — In Progress
-Plan: 2 of 4 in phase 09 (coordinate layout complete)
-Status: Phase 9 plan 02 complete — All 67 slot coordinates mapped, 66 connector lines generated, smoke test green
-Last activity: 2026-03-04 — Completed 09-02-PLAN.md (bracket coordinate layout algorithm)
+Plan: 3 of 4 in phase 09 (SVG rendering and champion panel complete)
+Status: Phase 9 plan 03 complete — SVG bracket rendering module built; Bracket tab and Champion tab wired into app.py
+Last activity: 2026-03-04 — Completed 09-03-PLAN.md (SVG bracket rendering + champion panel)
 
-Progress: [█████████░] 95% (31/32 plans estimated)
+Progress: [█████████░] 96% (32/33 plans estimated)
 
 ## Performance Metrics
 
@@ -166,6 +166,9 @@ Recent decisions affecting current work:
 - [09-02]: NCAA bracket seeding structure (R2W1 fed by R1W1+R1W8, not adjacent R1 slots) causes parent-centering formula to collapse all R2-R4 y-values to same position — use doubling-spacing formula: spacing=base*(2^(r-1)), y=s*spacing+(spacing-BOX_HEIGHT)//2
 - [09-02]: bracket is left-right symmetric (R4W1.y == R4Y1.y, R4X1.y == R4Z1.y) so centering formula also collapses R5WX/R5YZ/R6CH to same y — fix: place R5WX at upper R4 y-level, R5YZ at lower R4 y-level, R6CH mathematically between them
 - [09-02]: canvas width 2030px (slightly >2000 suggested in plan) — all 67 slots fit without overlap; `uv run python` fails on this project due to streamlit/pandas conflict; use `.venv/bin/python` directly
+- [09-03]: render_bracket_svg_string() calls build_slot_tree() and load_seedings() internally -- callers pass only det_result, layout, team_id_to_name, team_id_to_seednum
+- [09-03]: components.html height = canvas_height + 40 prevents Streamlit 150px default clipping; scrolling=True for full bracket navigation
+- [09-03]: 64/68 unique team names appear in SVG (4 First Four play-in teams share seed positions); 67 win probability values rendered
 
 ### Pending Todos
 
@@ -189,6 +192,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:11:28Z
-Stopped at: Completed 09-02-PLAN.md — SVG bracket coordinate layout engine; 67 slots, 66 connectors, zero overlaps
+Last session: 2026-03-04T16:18:22Z
+Stopped at: Completed 09-03-PLAN.md — SVG bracket rendering module and champion panel; Bracket tab and Champion tab fully wired into app.py
 Resume file: None
