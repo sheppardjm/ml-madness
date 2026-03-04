@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** Phase 6 (ensemble models) in progress — 06-01 (XGBoost) and 06-02 (LightGBM) complete (wave 1). Wave 2 (neural network, stacking ensemble) is next.
+**Current focus:** Phase 6 (ensemble models) in progress — 06-01 through 06-04 complete. Central question answered: ensemble beats logistic baseline. 06-05 (final model selection/packaging) is next.
 
 ## Current Position
 
 Phase: 6 of 10 (Ensemble Models) — In progress
-Plan: 3 of 5 in phase 06 (06-03 complete with SUMMARY)
-Status: 06-03 complete — TwoTierEnsemble stacking ensemble built; OOF Brier=0.1672 vs baseline 0.1900 (-0.0228 improvement); ensemble.joblib saved
-Last activity: 2026-03-04 — Completed 06-03-PLAN.md (stacking ensemble assembly)
+Plan: 4 of 5 in phase 06 (06-04 complete with SUMMARY)
+Status: 06-04 complete — Ensemble backtest (2022-2025) runs; mean Brier=0.1692 vs baseline 0.1900 (-11% relative); ensemble_results.json written
+Last activity: 2026-03-04 — Completed 06-04-PLAN.md (ensemble backtest)
 
-Progress: [████████░░] 70% (21/30 plans estimated)
+Progress: [████████░░] 73% (22/30 plans estimated)
 
 ## Performance Metrics
 
@@ -134,6 +134,11 @@ Recent decisions affecting current work:
 - [06-03]: save_artifact() pattern required for any class saved via joblib from __main__: re-import from stable module path via importlib before dump() to fix __main__.TwoTierEnsemble -> src.models.ensemble.TwoTierEnsemble pickle path
 - [06-03]: LR base model OOF predictions must go through ClippedCalibrator before meta-learner training -- ensures meta-learner learns from calibrated (production-consistent) signals, not raw LR outputs
 - [06-03]: OOF Ensemble Brier=0.1672 (XGB=1.26, LGB=0.92, LR=1.70 meta coefficients) -- LR base model weighted highest in meta-learner; stacking beats all individual models and the 0.1900 baseline by 12% relative
+- [06-04]: Per-fold ensemble built entirely from scratch for each backtest year -- models/ensemble.joblib is never loaded during backtesting; ensures strict temporal isolation
+- [06-04]: _build_fold_ensemble() uses nested OOF from last 3 available seasons before test_year (inner temporal sub-fold loop); meta-learner trained on this nested OOF, then base models re-fit on full train_df
+- [06-04]: fold_scaler.transform() called by predict_fn caller; TwoTierEnsemble.predict_proba() receives already-scaled input (no double-scaling) -- this is the canonical call pattern for ensemble inference
+- [06-04]: Ensemble backtest (2022-2025) mean Brier=0.1692 vs baseline 0.1900 (-0.0208 delta, -11% relative) -- ENSEMBLE WINS; per-year: 2022=0.1793, 2023=0.1850, 2024=0.1760, 2025=0.1364
+- [06-04]: backtest() routes to backtest/ensemble_results.json automatically when model='ensemble' and output_path is default -- preserves baseline results.json intact; both files coexist in backtest/
 
 ### Pending Todos
 
@@ -157,6 +162,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:56:57Z
-Stopped at: Completed 06-03-PLAN.md — TwoTierEnsemble stacking ensemble; OOF Brier=0.1672 vs baseline 0.1900; ensemble.joblib saved
+Last session: 2026-03-04T06:04:47Z
+Stopped at: Completed 06-04-PLAN.md — Ensemble backtest (2022-2025); mean Brier=0.1692 vs baseline 0.1900 (-11%); ensemble_results.json written
 Resume file: None
