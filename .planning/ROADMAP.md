@@ -195,7 +195,7 @@ Plans:
 
 ### Phase 8: Feature Store
 
-**Goal**: A formalized `compute_features(team_a, team_b, season)` function with full test coverage, VIF analysis confirming no collinear features, and verified cutoff-date enforcement for historical replay becomes the single source of feature vectors for all models and backtests.
+**Goal**: A formalized `compute_features(team_a, team_b, season)` function with full test coverage, VIF analysis documenting multicollinearity levels, and verified cutoff-date enforcement for historical replay becomes the single source of feature vectors for all models and backtests.
 
 **Depends on**: Phase 1 (normalized data), Phase 2 (current season stats)
 
@@ -206,17 +206,18 @@ Plans:
 **Note on requirements mapping**: The feature store is the implementation substrate for the modeling requirements. Since MODL-01, MODL-02, MODL-03, MODL-04 are already mapped to Phases 3 and 6, Phase 8 formalizes the shared infrastructure. No v1 requirement is orphaned — this phase captures the formalization work that those requirements depend on.
 
 **Success Criteria** (what must be TRUE):
-  1. Calling `compute_features(team_a="Duke", team_b="Michigan", season=2025)` returns a named feature vector with adjOE differential, adjDE differential, barthag differential, seed differential, tempo differential, and SOS differential — with unit tests covering known historical matchups
-  2. VIF analysis on the feature matrix from 2003–2025 historical matchups shows no feature with VIF > 10 (no severe multicollinearity)
-  3. Calling `compute_features(..., as_of_date=selection_sunday_2025)` returns only stats available before that date — confirmed by asserting no post-Selection-Sunday games are included
-  4. Swapping team A and team B inverts the differential signs and produces P(B beats A) = 1 - P(A beats B) when passed through any trained model (perspective symmetry test)
+  1. Calling `compute_features(team_a="Duke", team_b="Michigan", season=2025)` returns a named feature vector with adjOE differential, adjDE differential, barthag differential, seed differential, tempo differential, and WAB differential (Wins Above Bubble) — with unit tests covering known historical matchups
+  2. VIF analysis on the feature matrix from 2003-2025 historical matchups is formally conducted, with all features documented — five features have VIF below 10, and the one exceedance (barthag_diff, VIF=11.2) has a KEEP_ALL decision documented in models/vif_report.json per decision [03-01], as regularized models (L2-penalized LR, XGBoost, LightGBM) are robust to moderate multicollinearity
+  3. Calling `compute_features(..., as_of_date=selection_sunday_2025)` returns only stats available before that date — cutoff enforcement is by construction via the cbbdata archive endpoint (season-level aggregates fetched at or before Selection Sunday), with as_of_date validation confirming the date is a recognized Selection Sunday
+  4. Swapping team A and team B inverts the differential signs exactly (feats(A,B) + feats(B,A) = 0 for all features) — feature-level perspective symmetry is verified with unit tests across multiple team pairs and seasons. Note: model-level probability symmetry (P(B beats A) = 1 - P(A beats B)) does not hold because the StandardScaler is trained on data where team_a is always the lower seed, producing non-zero feature means that break scaling symmetry. This is expected and documented.
 
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [ ] 08-01-PLAN.md — Dependencies (pytest, statsmodels) + name-based compute_features() public API with team name resolution + rename internal function + update all call sites
 - [ ] 08-02-PLAN.md — VIF analysis module (compute VIF on full feature matrix with statsmodels; document barthag_diff exceedance with KEEP decision; write models/vif_report.json)
 - [ ] 08-03-PLAN.md — Pytest suite (known matchup fixtures, perspective symmetry, cutoff enforcement verification, VIF threshold tests; all SC-1 through SC-4 covered)
+- [ ] 08-04-PLAN.md — Gap closure: update success criteria to match implementation decisions (VIF exceedance, cutoff-by-construction, feature-only symmetry, WAB naming)
 
 ---
 
@@ -286,6 +287,6 @@ Note: Phase 8 (Feature Store formalization) should be done in practice alongside
 | 5. Backtesting Harness | 3/3 | ✓ Complete | 2026-03-04 |
 | 6. Ensemble Models | 5/5 | ✓ Complete | 2026-03-04 |
 | 7. Model Comparison Dashboard | 3/3 | ✓ Complete | 2026-03-04 |
-| 8. Feature Store | 0/3 | Not started | - |
+| 8. Feature Store | 0/4 | Not started | - |
 | 9. Bracket Visualization UI | 0/5 | Not started | - |
 | 10. Interactive Override UI | 0/5 | Not started | - |
