@@ -44,6 +44,7 @@ def simulate_bracket(
     slots_csv: str | None = None,
     season: int = 2025,
     stats_lookup: dict | None = None,
+    champion_ineligible: set[int] | None = None,
 ) -> dict[str, Any]:
     """Simulate an NCAA tournament bracket.
 
@@ -81,6 +82,13 @@ def simulate_bracket(
         season:       Tournament season year. Default: 2025.
         stats_lookup: Stats dict for score prediction (consumed by 04-04).
                       Accepted but not used in deterministic simulation.
+        champion_ineligible: Set of team IDs ineligible to win the championship
+                      (R6CH only). In deterministic mode, if the natural R6CH
+                      winner is ineligible, the opponent wins. In MC mode,
+                      runs where an ineligible team wins R6CH are flipped to
+                      their opponent. Teams can still advance to the Final
+                      Four — only the championship game is affected.
+                      None = no eligibility filter.
 
     Returns:
         For deterministic mode:
@@ -164,6 +172,7 @@ def simulate_bracket(
             n_runs=n_runs,
             seed=seed,
             override_map=override_map,
+            champion_ineligible=champion_ineligible,
         )
     if mode == "deterministic":
         return _simulate_deterministic(
@@ -173,6 +182,7 @@ def simulate_bracket(
             season=season,
             stats_lookup=stats_lookup,
             override_map=override_map,
+            champion_ineligible=champion_ineligible,
         )
     raise ValueError(
         f"Unknown simulation mode: {mode!r}. "
@@ -322,6 +332,7 @@ def _simulate_monte_carlo(
     n_runs: int,
     seed: int | None,
     override_map: dict[str, int] | None = None,
+    champion_ineligible: set[int] | None = None,
 ) -> dict[str, Any]:
     """Internal Monte Carlo bracket simulation.
 
@@ -418,6 +429,29 @@ def _simulate_monte_carlo(
             np.int32
         )
 
+    # Step 6b: Apply champion eligibility filter to R6CH.
+    # For runs where an ineligible team wins R6CH, flip to the opponent
+    # (the other finalist from R5WX / R5YZ).
+    if champion_ineligible:
+        ineligible_idxs = {
+            team_to_idx[tid]
+            for tid in champion_ineligible
+            if tid in team_to_idx
+        }
+        if ineligible_idxs:
+            r6ch = occupants["R6CH"]
+            # The two finalists for each run
+            f_wx = occupants["R5WX"]
+            f_yz = occupants["R5YZ"]
+            # The opponent is whichever finalist is NOT the R6CH winner
+            opponent = np.where(r6ch == f_wx, f_yz, f_wx)
+            # Build mask: True where R6CH winner is ineligible
+            mask = np.zeros(n_runs, dtype=bool)
+            for idx in ineligible_idxs:
+                mask |= r6ch == idx
+            # Flip ineligible winners to their opponent
+            occupants["R6CH"] = np.where(mask, opponent, r6ch)
+
     # Step 7: Determine champion (most frequent R6CH occupant)
     champ_occ = occupants["R6CH"]  # shape (n_runs,)
     champ_counts = np.bincount(champ_occ, minlength=len(teams))
@@ -465,6 +499,7 @@ def _simulate_deterministic(
     season: int,
     stats_lookup: dict | None = None,
     override_map: dict[str, int] | None = None,
+    champion_ineligible: set[int] | None = None,
 ) -> dict[str, Any]:
     """Internal deterministic bracket simulation.
 
@@ -568,6 +603,23 @@ def _simulate_deterministic(
         else:
             slot_winner[slot_id] = team_b
             slot_prob[slot_id] = 1.0 - prob_a_wins
+
+    # Step 4e: Apply champion eligibility filter to R6CH.
+    # If the natural R6CH winner is ineligible, flip to the opponent.
+    if (
+        champion_ineligible
+        and slot_winner["R6CH"] in champion_ineligible
+        and "R6CH" not in overridden_slots  # don't override user's manual pick
+    ):
+        # The two finalists are the winners of R5WX and R5YZ
+        finalist_a = slot_winner["R5WX"]
+        finalist_b = slot_winner["R5YZ"]
+        current_champ = slot_winner["R6CH"]
+        opponent = finalist_b if current_champ == finalist_a else finalist_a
+        slot_winner["R6CH"] = opponent
+        # Flip the probability (opponent's win prob = 1 - original winner's prob)
+        orig_prob = slot_prob["R6CH"]
+        slot_prob["R6CH"] = (1.0 - orig_prob) if orig_prob is not None else None
 
     # Step 5: Build output dict with all native Python types
     # For the champion entry, win_prob may be None if R6CH was overridden.

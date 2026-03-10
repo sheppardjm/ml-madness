@@ -12,6 +12,7 @@ import pandas as pd
 
 from src.ui.data_loader import (
     build_ensemble_predict_fn,
+    load_champion_ineligible,
     load_model,
     load_seedings_cached,
     load_team_info,
@@ -39,10 +40,17 @@ artifact, model_meta = load_model()
 seedings = load_seedings_cached(season)
 predict_fn = build_ensemble_predict_fn(artifact, season)
 team_id_to_name, team_id_to_seed, team_id_to_seednum = load_team_info(season)
+_ineligible = frozenset(load_champion_ineligible(season))
 
 # --- Run simulations (cached) ---
-det_result = run_deterministic(predict_fn, seedings, season, override_map=_override_arg)
-mc_result = run_monte_carlo(predict_fn, seedings, season, override_map=_override_arg)
+det_result = run_deterministic(
+    predict_fn, seedings, season,
+    override_map=_override_arg, champion_ineligible=_ineligible,
+)
+mc_result = run_monte_carlo(
+    predict_fn, seedings, season,
+    override_map=_override_arg, champion_ineligible=_ineligible,
+)
 
 # --- Sidebar ---
 with st.sidebar:

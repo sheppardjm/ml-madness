@@ -28,6 +28,7 @@ import joblib
 import numpy as np
 import streamlit as st
 
+from src.eligibility import get_champion_ineligible_teams
 from src.models.features import FEATURE_COLS, _compute_features_by_id, build_stats_lookup
 from src.simulator.bracket_schema import load_seedings
 from src.simulator.simulate import simulate_bracket
@@ -136,12 +137,26 @@ def build_ensemble_predict_fn(_artifact: dict, season: int = 2025):
     return predict_fn
 
 
+@st.cache_data
+def load_champion_ineligible(season: int = 2025) -> set[int]:
+    """Load team IDs ineligible to win the championship for a season.
+
+    Checks two historical conditions:
+    1. Must have reached conference tournament semifinals
+    2. Must not have lost more than 2 of last 4 regular season games
+
+    Returns empty set if data is unavailable (graceful degradation).
+    """
+    return get_champion_ineligible_teams(season)
+
+
 @st.cache_data(hash_funcs={dict: lambda d: str(sorted(d.items()))})
 def run_deterministic(
     _predict_fn,
     _seedings: dict,
     season: int = 2025,
     override_map: dict | None = None,
+    champion_ineligible: frozenset[int] | None = None,
 ) -> dict:
     """Run deterministic bracket simulation with caching.
 
@@ -175,6 +190,7 @@ def run_deterministic(
         mode="deterministic",
         season=season,
         override_map=override_map or None,
+        champion_ineligible=set(champion_ineligible) if champion_ineligible else None,
     )
 
 
@@ -186,6 +202,7 @@ def run_monte_carlo(
     n_runs: int = 10000,
     seed: int = 42,
     override_map: dict | None = None,
+    champion_ineligible: frozenset[int] | None = None,
 ) -> dict:
     """Run Monte Carlo bracket simulation with caching.
 
@@ -222,6 +239,7 @@ def run_monte_carlo(
         seed=seed,
         season=season,
         override_map=override_map or None,
+        champion_ineligible=set(champion_ineligible) if champion_ineligible else None,
     )
 
 
