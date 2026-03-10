@@ -32,6 +32,9 @@ _REG_SEASON_CSV = _KAGGLE_DIR / "MRegularSeasonCompactResults.csv"
 _TEAM_CONF_CSV = _KAGGLE_DIR / "MTeamConferences.csv"
 _SEEDS_CSV = _KAGGLE_DIR / "MNCAATourneySeeds.csv"
 
+# Processed data paths
+_SEEDS_PARQUET = pathlib.Path("data/processed/seeds.parquet")
+
 # Torvik ratings paths
 _HIST_RATINGS = pathlib.Path("data/processed/historical_torvik_ratings.parquet")
 _CURRENT_RATINGS = pathlib.Path("data/processed/current_season_stats.parquet")
@@ -155,19 +158,23 @@ def _get_rating_ineligible(con: duckdb.DuckDBPyConnection, season: int) -> set[i
     Returns empty set if no ratings data is available (graceful degradation).
     """
     # Try historical ratings first, then current season stats
+    # Current season stats use year = season - 1 (e.g. 2025 for the 2026 tournament)
     ratings_df = None
     for path in (_HIST_RATINGS, _CURRENT_RATINGS):
         if not path.exists():
             continue
-        # historical uses 'season', current uses 'year'
         season_col = "season" if path == _HIST_RATINGS else "year"
-        df = con.execute(f"""
-            SELECT kaggle_team_id, adj_o, adj_d, (adj_o - adj_d) as eff_margin
-            FROM read_parquet('{path}')
-            WHERE {season_col} = ?
-        """, [season]).fetchdf()
-        if len(df) > 0:
-            ratings_df = df
+        query_seasons = [season] if path == _HIST_RATINGS else [season, season - 1]
+        for qs in query_seasons:
+            df = con.execute(f"""
+                SELECT kaggle_team_id, adj_o, adj_d, (adj_o - adj_d) as eff_margin
+                FROM read_parquet('{path}')
+                WHERE {season_col} = ?
+            """, [qs]).fetchdf()
+            if len(df) > 0:
+                ratings_df = df
+                break
+        if ratings_df is not None:
             break
 
     if ratings_df is None or len(ratings_df) == 0:
@@ -244,18 +251,30 @@ def _get_seed_ineligible(
 ) -> set[int]:
     """Return team IDs with a tournament seed worse than the threshold.
 
+    Tries Kaggle CSV first, then falls back to seeds.parquet (which has
+    current-season seeds before Kaggle data is updated).
+
     Returns empty set if seeds data is unavailable.
     """
-    if not seeds_path.exists():
-        return set()
+    seeds = None
 
-    seeds = con.execute(f"""
-        SELECT TeamID, CAST(REGEXP_EXTRACT(Seed, '[0-9]+') AS INTEGER) as SeedNum
-        FROM read_csv_auto('{seeds_path}')
-        WHERE Season = ?
-    """, [season]).fetchdf()
+    # Try Kaggle CSV first
+    if seeds_path.exists():
+        seeds = con.execute(f"""
+            SELECT TeamID, CAST(REGEXP_EXTRACT(Seed, '[0-9]+') AS INTEGER) as SeedNum
+            FROM read_csv_auto('{seeds_path}')
+            WHERE Season = ?
+        """, [season]).fetchdf()
 
-    if len(seeds) == 0:
+    # Fall back to seeds.parquet (has current season data)
+    if (seeds is None or len(seeds) == 0) and _SEEDS_PARQUET.exists():
+        seeds = con.execute(f"""
+            SELECT TeamID, SeedNum
+            FROM read_parquet('{_SEEDS_PARQUET}')
+            WHERE Season = ?
+        """, [season]).fetchdf()
+
+    if seeds is None or len(seeds) == 0:
         return set()
 
     return {
