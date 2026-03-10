@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web application that uses an ensemble of machine learning models to predict every game in the 2026 NCAA Men's Basketball Tournament. Given the 68-team bracket, it produces win probabilities for each matchup across all rounds and predicts a champion with both a confidence percentage and a predicted championship game score. The bracket is interactive — users can override individual picks and see how changes ripple through downstream rounds.
+An interactive Streamlit web application that uses a stacking ensemble (XGBoost + LightGBM + logistic regression meta-learner) to predict every game in the 2026 NCAA Men's Basketball Tournament. Given the 68-team bracket, it produces win probabilities for each matchup across all rounds, simulates 10,000 Monte Carlo bracket outcomes, and predicts a champion with confidence percentage. The bracket is interactive — users can override individual picks and see how changes ripple through downstream rounds via real-time cascade recalculation.
 
 ## Core Value
 
@@ -12,56 +12,56 @@ Accurate, data-driven bracket predictions that give a competitive edge in bracke
 
 ### Validated
 
-(None yet — ship to validate)
+- ML ensemble trained on historical NCAA tournament data from public APIs/datasets — v1.0 (TwoTierEnsemble, Brier=0.1692)
+- Auto-fetch of the 68-team bracket when announced on Selection Sunday — v1.0 (ESPN API + CSV fallback)
+- Win probability predictions for every game in every round — v1.0 (67 slots filled)
+- Champion prediction with confidence percentage and predicted championship game score — v1.0 (MC confidence; score in simulator, not UI)
+- Interactive web bracket visualization — override picks and see downstream effects — v1.0 (Streamlit SVG + session persistence)
+- Backtesting against the 2025 tournament using in-repo data and public sources — v1.0 (temporal isolation verified)
+- Multiple model architectures compared (ensemble/experiment approach — pick the best performer) — v1.0 (LR vs XGB vs LGB vs ensemble)
+- Historical team stats ingestion from public sources (KenPom-style efficiency, seed history, strength of schedule, etc.) — v1.0 (cbbdata Torvik ratings, 22 seasons)
 
 ### Active
 
-- [ ] ML ensemble trained on historical NCAA tournament data from public APIs/datasets
-- [ ] Auto-fetch of the 68-team bracket when announced on Selection Sunday
-- [ ] Win probability predictions for every game in every round
-- [ ] Champion prediction with confidence percentage and predicted championship game score
-- [ ] Interactive web bracket visualization — override picks and see downstream effects
-- [ ] Backtesting against the 2025 tournament using in-repo data and public sources
-- [ ] Multiple model architectures compared (ensemble/experiment approach — pick the best performer)
-- [ ] Historical team stats ingestion from public sources (KenPom-style efficiency, seed history, strength of schedule, etc.)
+(None — next milestone requirements defined via `/gsd:new-milestone`)
 
 ### Out of Scope
 
 - Score predictions for every game — only win probabilities (championship game is the exception)
 - Multi-user support — this is a personal tool
-- Mobile app — web-only
+- Mobile app — web-only; Streamlit handles responsive adequately
 - Real-time game tracking or live updates during the tournament
-- Explainability/feature importance — just show the probabilities, not why
+- Explainability/feature importance — deferred to potential v2
 
 ## Context
 
-- The 2026 NCAA tournament is approaching (Selection Sunday mid-March 2026)
-- Reference data already in the repo:
-  - `2025 NCAA Tournament Guide.html/.pdf` — detailed 2025 tournament analysis
-  - `2025-tournament-results-wiki.md` — full 2025 bracket results (Florida won, beat Houston 65-63)
-  - `rankings-3-2-26.md` — current power rankings as of March 1, 2026
-  - `bauertology-3-2-26.webp` — projected 2026 bracket (bracketology)
-  - `true-seed-3-2-26.webp` — overall true seed rankings
-- 2025 tournament was historically chalk: all four #1 seeds made the Final Four, no top-4 seed lost in Round 1
-- Key 2026 contenders per current rankings: Duke (#1), Michigan (#2), Arizona (#3), UConn (#4), Florida (#5)
-- Model needs to handle both historical trends AND the specific characteristics of each year's field
+- v1.0 MVP shipped 2026-03-10 with ~12,400 lines of Python across 167 files
+- Tech stack: Python 3.12, uv, Streamlit, DuckDB, Parquet, XGBoost, LightGBM, scikit-learn, numpy, Optuna
+- Selection Sunday is 2026-03-15 — bracket fetch pipeline ready, needs live data
+- current_season_stats.parquet has 2024-25 data as proxy — refresh when cbbdata indexes 2025-26
+- Ensemble Brier=0.1692 (11% better than logistic baseline 0.1900) on 2022-2025 holdout
+- 5 tech debt items documented in milestone audit (none critical)
+- Key 2026 contenders per rankings: Duke (#1), Michigan (#2), Arizona (#3), UConn (#4), Florida (#5)
 
 ## Constraints
 
-- **Data**: Public APIs/datasets only — no paid subscriptions (KenPom is paid; need free alternatives or scraped equivalents)
-- **Timeline**: Must be functional before Selection Sunday 2026 (mid-March)
+- **Data**: Public APIs/datasets only — no paid subscriptions (cbbdata/Bart Torvik as KenPom alternative)
+- **Timeline**: Must be functional before Selection Sunday 2026 (2026-03-15)
 - **Audience**: Single user (personal tool) — no auth, no deployment complexity needed
-- **Tech stack**: To be determined during research phase
+- **Tech stack**: Python 3.12, uv, Streamlit, DuckDB/Parquet, scikit-learn, XGBoost, LightGBM
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Ensemble/experiment approach for ML | Try multiple model architectures, compare performance, use the best | — Pending |
-| Win probabilities over score predictions | Probabilities are more useful for bracket decisions than exact scores | — Pending |
-| Backtest against 2025 first | Validates model quality before trusting it for 2026 picks | — Pending |
-| Interactive bracket (not read-only) | Ability to override and explore "what if" scenarios adds personal value | — Pending |
-| Auto-fetch bracket | Eliminates manual data entry on Selection Sunday | — Pending |
+| TwoTierEnsemble (manual OOF stacking) | sklearn StackingClassifier incompatible with walk-forward splits | Good — Brier 0.1692, -11% vs baseline |
+| ClippedCalibrator [0.05, 0.89] | Isotonic calibration worsened overconfidence; hard bounds eliminate it | Good — 0 overconfident predictions, +0.0004 Brier penalty |
+| cbbdata over KenPom | Free API with equivalent Torvik efficiency metrics | Good — full pipeline works without paid subscriptions |
+| DuckDB + Parquet storage | Fast analytical queries without database server | Good — subsecond queries on 22 seasons |
+| Win probabilities over score predictions | Probabilities more useful for bracket decisions | Good — championship score exists but per-game scores out of scope |
+| Backtest 2022-2025 first | Validates model quality with diverse tournament profiles | Good — chalk (2025) + upset-heavy (2022-2024) covered |
+| Interactive bracket with overrides | "What if" scenarios add personal value beyond read-only bracket | Good — cascade recalculation works in real-time |
+| Auto-fetch bracket from ESPN | Eliminates manual data entry on Selection Sunday | Good — pipeline ready, CSV fallback tested |
 
 ---
-*Last updated: 2026-03-02 after initialization*
+*Last updated: 2026-03-10 after v1.0 milestone*
