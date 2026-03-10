@@ -42,3 +42,18 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+
+# Playwright MCP
+.playwright-mcp/
+
+# Reference files (not code)
+*.webp
+*.pdf
+*.html
+*.png
+!src/**/*.html
+project.md
+main.py
+README.md
+rankings-*.md
+2025-tournament-results-wiki.md
