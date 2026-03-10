@@ -1,15 +1,19 @@
 """
 Champion eligibility filter based on historical conditions.
 
-Five conditions must ALL be met for a team to be eligible to win the championship:
+Nine conditions must ALL be met for a team to be eligible to win the championship:
 1. Reached at least the conference tournament semifinals
 2. Lost no more than 2 of their last 4 regular season games
 3. Top 25 in adjusted efficiency margin (adj_o - adj_d)
 4. Top 57 in adjusted offensive efficiency
 5. Top 44 in adjusted defensive efficiency
+6. Top 21 in regular season wins
+7. Top 32 in regular season win percentage
+8. No more than 9 regular season losses (top 40 fewest losses)
+9. Tournament seed of 7 or better
 
-Every NCAA champion from 2008-2025 satisfied all five conditions.
-Conditions 1-2 also hold for 2003-2007 (ratings data unavailable for 3-5).
+Every NCAA champion from 2003-2025 satisfied all applicable conditions.
+Conditions 3-5 verified for 2008-2025 (ratings data unavailable for 2003-2007).
 
 Exports:
     get_champion_ineligible_teams(season) -> set of team IDs ineligible for championship
@@ -26,6 +30,7 @@ _KAGGLE_DIR = pathlib.Path("data/raw/kaggle")
 _CONF_TOURNEY_CSV = _KAGGLE_DIR / "MConferenceTourneyGames.csv"
 _REG_SEASON_CSV = _KAGGLE_DIR / "MRegularSeasonCompactResults.csv"
 _TEAM_CONF_CSV = _KAGGLE_DIR / "MTeamConferences.csv"
+_SEEDS_CSV = _KAGGLE_DIR / "MNCAATourneySeeds.csv"
 
 # Torvik ratings paths
 _HIST_RATINGS = pathlib.Path("data/processed/historical_torvik_ratings.parquet")
@@ -36,12 +41,19 @@ _MAX_EFF_MARGIN_RANK = 25   # adj_o - adj_d rank among all D1 teams
 _MAX_ADJ_O_RANK = 57        # adj offensive efficiency rank
 _MAX_ADJ_D_RANK = 44        # adj defensive efficiency rank (lower adj_d = better)
 
+# Record rank thresholds (verified against all champions 2003-2025)
+_MAX_WINS_RANK = 21          # RS wins rank among all D1 teams (worst: 2023 UConn)
+_MAX_WIN_PCT_RANK = 32       # RS win% rank among all D1 teams (worst: 2011 UConn)
+_MAX_RS_LOSSES = 9           # absolute max RS losses (worst: 2011 UConn)
+_MAX_SEED = 7                # tournament seed (worst: 2014 UConn)
+
 
 def get_champion_ineligible_teams(
     season: int,
     conf_tourney_csv: str | pathlib.Path | None = None,
     reg_season_csv: str | pathlib.Path | None = None,
     team_conf_csv: str | pathlib.Path | None = None,
+    seeds_csv: str | pathlib.Path | None = None,
     tournament_team_ids: set[int] | None = None,
 ) -> set[int]:
     """Return team IDs ineligible to win the championship for a given season.
@@ -52,12 +64,17 @@ def get_champion_ineligible_teams(
     3. Not in top 25 of adjusted efficiency margin (adj_o - adj_d)
     4. Not in top 57 of adjusted offensive efficiency
     5. Not in top 44 of adjusted defensive efficiency
+    6. Not in top 21 of regular season wins
+    7. Not in top 32 of regular season win percentage
+    8. More than 9 regular season losses
+    9. Tournament seed worse than 7
 
     Args:
         season: Tournament season year.
         conf_tourney_csv: Path to MConferenceTourneyGames.csv. Defaults to Kaggle dir.
         reg_season_csv: Path to MRegularSeasonCompactResults.csv. Defaults to Kaggle dir.
         team_conf_csv: Path to MTeamConferences.csv. Defaults to Kaggle dir.
+        seeds_csv: Path to MNCAATourneySeeds.csv. Defaults to Kaggle dir.
         tournament_team_ids: If provided, only evaluate these teams. Otherwise
             evaluates all teams that appear in the conference tournament data.
 
@@ -68,8 +85,9 @@ def get_champion_ineligible_teams(
     ct_path = pathlib.Path(conf_tourney_csv or _CONF_TOURNEY_CSV)
     rs_path = pathlib.Path(reg_season_csv or _REG_SEASON_CSV)
     tc_path = pathlib.Path(team_conf_csv or _TEAM_CONF_CSV)
+    sd_path = pathlib.Path(seeds_csv or _SEEDS_CSV)
 
-    # Graceful degradation: if data files don't exist, return empty set
+    # Graceful degradation: if core data files don't exist, return empty set
     for p in (ct_path, rs_path, tc_path):
         if not p.exists():
             return set()
@@ -92,8 +110,10 @@ def get_champion_ineligible_teams(
         """, [season, season]).fetchall()
         tournament_team_ids = {r[0] for r in rows}
 
-    # Pre-compute rating ranks for conditions 3-5
+    # Pre-compute set-based filters
     rating_ineligible = _get_rating_ineligible(con, season)
+    record_ineligible = _get_record_ineligible(con, season)
+    seed_ineligible = _get_seed_ineligible(con, season, sd_path)
 
     ineligible: set[int] = set()
 
@@ -110,6 +130,16 @@ def get_champion_ineligible_teams(
 
         # --- Conditions 3-5: Rating rank thresholds ---
         if tid in rating_ineligible:
+            ineligible.add(tid)
+            continue
+
+        # --- Conditions 6-8: Record rank thresholds ---
+        if tid in record_ineligible:
+            ineligible.add(tid)
+            continue
+
+        # --- Condition 9: Seed ≤ 7 ---
+        if tid in seed_ineligible:
             ineligible.add(tid)
 
     con.close()
@@ -160,6 +190,79 @@ def _get_rating_ineligible(con: duckdb.DuckDBPyConnection, season: int) -> set[i
             ineligible.add(tid)
 
     return ineligible
+
+
+def _get_record_ineligible(con: duckdb.DuckDBPyConnection, season: int) -> set[int]:
+    """Return team IDs failing any of the three record rank conditions.
+
+    Conditions:
+    6. Not in top 21 of regular season wins
+    7. Not in top 32 of regular season win percentage
+    8. More than 9 regular season losses
+
+    Returns empty set if no regular season data is available.
+    """
+    all_records = con.execute("""
+        WITH team_records AS (
+            SELECT TeamID,
+                SUM(CASE WHEN role = 'W' THEN 1 ELSE 0 END) as wins,
+                SUM(CASE WHEN role = 'L' THEN 1 ELSE 0 END) as losses
+            FROM (
+                SELECT WTeamID as TeamID, 'W' as role FROM rs WHERE Season = ?
+                UNION ALL
+                SELECT LTeamID as TeamID, 'L' as role FROM rs WHERE Season = ?
+            )
+            GROUP BY TeamID
+        )
+        SELECT TeamID, wins, losses,
+               CAST(wins AS DOUBLE) / (wins + losses) as win_pct
+        FROM team_records
+    """, [season, season]).fetchdf()
+
+    if len(all_records) == 0:
+        return set()
+
+    all_records = all_records.copy()
+    all_records["wins_rank"] = all_records["wins"].rank(ascending=False, method="min").astype(int)
+    all_records["winpct_rank"] = all_records["win_pct"].rank(ascending=False, method="min").astype(int)
+
+    ineligible: set[int] = set()
+    for _, row in all_records.iterrows():
+        tid = int(row["TeamID"])
+        if (
+            row["wins_rank"] > _MAX_WINS_RANK
+            or row["winpct_rank"] > _MAX_WIN_PCT_RANK
+            or row["losses"] > _MAX_RS_LOSSES
+        ):
+            ineligible.add(tid)
+
+    return ineligible
+
+
+def _get_seed_ineligible(
+    con: duckdb.DuckDBPyConnection, season: int, seeds_path: pathlib.Path
+) -> set[int]:
+    """Return team IDs with a tournament seed worse than the threshold.
+
+    Returns empty set if seeds data is unavailable.
+    """
+    if not seeds_path.exists():
+        return set()
+
+    seeds = con.execute(f"""
+        SELECT TeamID, CAST(REGEXP_EXTRACT(Seed, '[0-9]+') AS INTEGER) as SeedNum
+        FROM read_csv_auto('{seeds_path}')
+        WHERE Season = ?
+    """, [season]).fetchdf()
+
+    if len(seeds) == 0:
+        return set()
+
+    return {
+        int(row["TeamID"])
+        for _, row in seeds.iterrows()
+        if row["SeedNum"] > _MAX_SEED
+    }
 
 
 def _reached_conf_semis(con: duckdb.DuckDBPyConnection, season: int, tid: int) -> bool:
