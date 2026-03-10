@@ -25,7 +25,7 @@ from src.ui.override_controls import build_override_controls, reset_overrides
 
 # --- Session state initialization ---
 if "season" not in st.session_state:
-    st.session_state.season = 2025
+    st.session_state.season = 2026
 
 if "override_map" not in st.session_state:
     st.session_state["override_map"] = {}

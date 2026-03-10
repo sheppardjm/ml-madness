@@ -54,6 +54,32 @@ CONNECTOR_OFFSET: int = 5   # horizontal extension of connector line from slot e
 # Vertical spacing for R1 game boxes (tight packing)
 _R1_V_SPACING: int = BOX_HEIGHT + 4   # 48px between top edges of adjacent R1 boxes
 
+# Bracket-correct visual ordering for R1 games within a region.
+#
+# The NCAA bracket arranges first-round games so that adjacent pairs feed into
+# the same second-round game:
+#   Position 0: 1 vs 16 ┐ R2 game 1
+#   Position 1: 8 vs  9 ┘
+#   Position 2: 5 vs 12 ┐ R2 game 2
+#   Position 3: 4 vs 13 ┘
+#   Position 4: 6 vs 11 ┐ R2 game 3
+#   Position 5: 3 vs 14 ┘
+#   Position 6: 7 vs 10 ┐ R2 game 4
+#   Position 7: 2 vs 15 ┘
+#
+# Kaggle numbers R1 slots sequentially by seed: R1x1 = 1v16, R1x2 = 2v15, ...
+# This maps slot_index (0-based) → visual_position (0-based from top):
+_R1_SLOT_TO_VISUAL: dict[int, int] = {
+    0: 0,  # R1x1 (1v16) → position 0
+    1: 7,  # R1x2 (2v15) → position 7
+    2: 5,  # R1x3 (3v14) → position 5
+    3: 3,  # R1x4 (4v13) → position 3
+    4: 2,  # R1x5 (5v12) → position 2
+    5: 4,  # R1x6 (6v11) → position 4
+    6: 6,  # R1x7 (7v10) → position 6
+    7: 1,  # R1x8 (8v9)  → position 1
+}
+
 # Width of the First Four pre-column (same as a normal slot)
 _FF_COL_WIDTH: int = SLOT_WIDTH
 
@@ -179,11 +205,8 @@ def compute_bracket_layout(season: int = 2025) -> dict[str, Any]:
     ff_slots = tree["ff_slots"]
 
     # -----------------------------------------------------------------------
-    # Step 1: Compute per-region y-coordinate tables
+    # Step 1: Slot tree loaded — R1 visual ordering + centering handles layout
     # -----------------------------------------------------------------------
-    # All four regions share the same internal y-layout (8->4->2->1 slots).
-    region_ys = _compute_region_slot_ys(8)
-    # region_ys[r][j] = y offset within the region for round r, slot index j
 
     # -----------------------------------------------------------------------
     # Step 2: Determine canvas geometry parameters
@@ -268,27 +291,45 @@ def compute_bracket_layout(season: int = 2025) -> dict[str, Any]:
 
     # --- Left regions: W (top) and X (bottom) ---
     for region, y_offset in (("W", y_top_region), ("X", y_bot_region)):
-        for rnd in range(1, 5):
-            n_slots = 8 // (2 ** (rnd - 1))   # R1=8, R2=4, R3=2, R4=1
+        # R1: place using bracket-correct visual ordering so adjacent slots
+        # feed into the same R2 game (1v16 next to 8v9, etc.)
+        x = left_x(1)
+        for j in range(8):
+            slot_id = f"R1{region}{j + 1}"
+            vis_pos = _R1_SLOT_TO_VISUAL[j]
+            y = y_offset + _r1_y_for_slot(vis_pos)
+            add_slot(slot_id, x, y, 1, region, "left")
+        # R2-R4: center each slot between its two feeder slots
+        for rnd in range(2, 5):
+            n_slots = 8 // (2 ** (rnd - 1))
             x = left_x(rnd)
-            ys_this_round = region_ys[rnd]
             for j in range(n_slots):
                 slot_id = f"R{rnd}{region}{j + 1}"
-                y = y_offset + ys_this_round[j]
+                seeds = slot_tree[slot_id]
+                ya = result_slots[seeds["StrongSeed"]]["y"]
+                yb = result_slots[seeds["WeakSeed"]]["y"]
+                y = _centered_y(min(ya, yb), max(ya, yb))
                 add_slot(slot_id, x, y, rnd, region, "left")
 
     # --- Right regions: Y (top) and Z (bottom) ---
-    # RIGHT side is mirrored: R1 slots appear rightmost, R4 leftmost.
-    # The slot index within the region is still 0-based from top to bottom,
-    # but x-position is computed with right_x().
     for region, y_offset in (("Y", y_top_region), ("Z", y_bot_region)):
-        for rnd in range(1, 5):
+        # R1: bracket-correct visual ordering (mirrored x, same y layout)
+        x = right_x(1)
+        for j in range(8):
+            slot_id = f"R1{region}{j + 1}"
+            vis_pos = _R1_SLOT_TO_VISUAL[j]
+            y = y_offset + _r1_y_for_slot(vis_pos)
+            add_slot(slot_id, x, y, 1, region, "right")
+        # R2-R4: center each slot between its two feeder slots
+        for rnd in range(2, 5):
             n_slots = 8 // (2 ** (rnd - 1))
             x = right_x(rnd)
-            ys_this_round = region_ys[rnd]
             for j in range(n_slots):
                 slot_id = f"R{rnd}{region}{j + 1}"
-                y = y_offset + ys_this_round[j]
+                seeds = slot_tree[slot_id]
+                ya = result_slots[seeds["StrongSeed"]]["y"]
+                yb = result_slots[seeds["WeakSeed"]]["y"]
+                y = _centered_y(min(ya, yb), max(ya, yb))
                 add_slot(slot_id, x, y, rnd, region, "right")
 
     # --- Final Four and Championship (center column) ---
