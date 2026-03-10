@@ -1,11 +1,15 @@
 """
 Champion eligibility filter based on historical conditions.
 
-Two conditions must be met for a team to be eligible to win the championship:
+Five conditions must ALL be met for a team to be eligible to win the championship:
 1. Reached at least the conference tournament semifinals
 2. Lost no more than 2 of their last 4 regular season games
+3. Top 25 in adjusted efficiency margin (adj_o - adj_d)
+4. Top 57 in adjusted offensive efficiency
+5. Top 44 in adjusted defensive efficiency
 
-Every NCAA champion from 2003-2025 satisfied both conditions.
+Every NCAA champion from 2008-2025 satisfied all five conditions.
+Conditions 1-2 also hold for 2003-2007 (ratings data unavailable for 3-5).
 
 Exports:
     get_champion_ineligible_teams(season) -> set of team IDs ineligible for championship
@@ -23,6 +27,15 @@ _CONF_TOURNEY_CSV = _KAGGLE_DIR / "MConferenceTourneyGames.csv"
 _REG_SEASON_CSV = _KAGGLE_DIR / "MRegularSeasonCompactResults.csv"
 _TEAM_CONF_CSV = _KAGGLE_DIR / "MTeamConferences.csv"
 
+# Torvik ratings paths
+_HIST_RATINGS = pathlib.Path("data/processed/historical_torvik_ratings.parquet")
+_CURRENT_RATINGS = pathlib.Path("data/processed/current_season_stats.parquet")
+
+# Rating rank thresholds (verified against all champions 2008-2025)
+_MAX_EFF_MARGIN_RANK = 25   # adj_o - adj_d rank among all D1 teams
+_MAX_ADJ_O_RANK = 57        # adj offensive efficiency rank
+_MAX_ADJ_D_RANK = 44        # adj defensive efficiency rank (lower adj_d = better)
+
 
 def get_champion_ineligible_teams(
     season: int,
@@ -33,9 +46,12 @@ def get_champion_ineligible_teams(
 ) -> set[int]:
     """Return team IDs ineligible to win the championship for a given season.
 
-    A team is ineligible if it fails EITHER condition:
+    A team is ineligible if it fails ANY condition:
     1. Did not reach its conference tournament semifinals
     2. Lost more than 2 of its last 4 regular season games
+    3. Not in top 25 of adjusted efficiency margin (adj_o - adj_d)
+    4. Not in top 57 of adjusted offensive efficiency
+    5. Not in top 44 of adjusted defensive efficiency
 
     Args:
         season: Tournament season year.
@@ -76,6 +92,9 @@ def get_champion_ineligible_teams(
         """, [season, season]).fetchall()
         tournament_team_ids = {r[0] for r in rows}
 
+    # Pre-compute rating ranks for conditions 3-5
+    rating_ineligible = _get_rating_ineligible(con, season)
+
     ineligible: set[int] = set()
 
     for tid in tournament_team_ids:
@@ -87,8 +106,59 @@ def get_champion_ineligible_teams(
         # --- Condition 2: Lost ≤2 of last 4 regular season games ---
         if _last4_rs_losses(con, season, tid) > 2:
             ineligible.add(tid)
+            continue
+
+        # --- Conditions 3-5: Rating rank thresholds ---
+        if tid in rating_ineligible:
+            ineligible.add(tid)
 
     con.close()
+    return ineligible
+
+
+def _get_rating_ineligible(con: duckdb.DuckDBPyConnection, season: int) -> set[int]:
+    """Return team IDs failing any of the three rating rank conditions.
+
+    Loads Torvik ratings for the season (historical or current), computes
+    efficiency margin, and checks each team's rank against thresholds.
+
+    Returns empty set if no ratings data is available (graceful degradation).
+    """
+    # Try historical ratings first, then current season stats
+    ratings_df = None
+    for path in (_HIST_RATINGS, _CURRENT_RATINGS):
+        if not path.exists():
+            continue
+        # historical uses 'season', current uses 'year'
+        season_col = "season" if path == _HIST_RATINGS else "year"
+        df = con.execute(f"""
+            SELECT kaggle_team_id, adj_o, adj_d, (adj_o - adj_d) as eff_margin
+            FROM read_parquet('{path}')
+            WHERE {season_col} = ?
+        """, [season]).fetchdf()
+        if len(df) > 0:
+            ratings_df = df
+            break
+
+    if ratings_df is None or len(ratings_df) == 0:
+        return set()  # no ratings data = don't penalize
+
+    # Compute ranks (1-based, higher is better for adj_o/eff_margin, lower is better for adj_d)
+    ratings_df = ratings_df.copy()
+    ratings_df["em_rank"] = ratings_df["eff_margin"].rank(ascending=False, method="min").astype(int)
+    ratings_df["ao_rank"] = ratings_df["adj_o"].rank(ascending=False, method="min").astype(int)
+    ratings_df["ad_rank"] = ratings_df["adj_d"].rank(ascending=True, method="min").astype(int)
+
+    ineligible: set[int] = set()
+    for _, row in ratings_df.iterrows():
+        tid = int(row["kaggle_team_id"])
+        if (
+            row["em_rank"] > _MAX_EFF_MARGIN_RANK
+            or row["ao_rank"] > _MAX_ADJ_O_RANK
+            or row["ad_rank"] > _MAX_ADJ_D_RANK
+        ):
+            ineligible.add(tid)
+
     return ineligible
 
 
