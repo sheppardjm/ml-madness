@@ -23,7 +23,15 @@ Accurate, data-driven bracket predictions that give a competitive edge in bracke
 
 ### Active
 
-(None — next milestone requirements defined via `/gsd:new-milestone`)
+#### Current Milestone: v1.1 Selection Sunday + Pool Strategy
+
+**Goal:** Refresh model with real 2025-26 data, fetch live bracket, add pool-strategy optimizer for large pools, and enrich the UI with matchup context — all before tournament tips off.
+
+**Target features:**
+- Refresh current_season_stats with real 2025-26 Torvik data and retrain ensemble
+- Fetch live 68-team bracket on Selection Sunday and generate predictions
+- Pool strategy optimizer with contrarian pick analysis for large (100+) pools
+- Richer matchup context in UI — team stats, historical performance, head-to-head analysis
 
 ### Out of Scope
 
@@ -38,15 +46,16 @@ Accurate, data-driven bracket predictions that give a competitive edge in bracke
 - v1.0 MVP shipped 2026-03-10 with ~12,400 lines of Python across 167 files
 - Tech stack: Python 3.12, uv, Streamlit, DuckDB, Parquet, XGBoost, LightGBM, scikit-learn, numpy, Optuna
 - Selection Sunday is 2026-03-15 — bracket fetch pipeline ready, needs live data
-- current_season_stats.parquet has 2024-25 data as proxy — refresh when cbbdata indexes 2025-26
+- current_season_stats.parquet has 2024-25 data as proxy — cbbdata has NOT indexed 2025-26 as of 2026-03-13
 - Ensemble Brier=0.1692 (11% better than logistic baseline 0.1900) on 2022-2025 holdout
 - 5 tech debt items documented in milestone audit (none critical)
 - Key 2026 contenders per rankings: Duke (#1), Michigan (#2), Arizona (#3), UConn (#4), Florida (#5)
+- Entering at least one large bracket pool (100+ entrants) — need contrarian strategy, not just chalk picks
 
 ## Constraints
 
 - **Data**: Public APIs/datasets only — no paid subscriptions (cbbdata/Bart Torvik as KenPom alternative)
-- **Timeline**: Must be functional before Selection Sunday 2026 (2026-03-15)
+- **Timeline**: Pool strategy and UI enhancements needed before tournament tips off (2026-03-19); data refresh + bracket fetch on Selection Sunday (2026-03-15)
 - **Audience**: Single user (personal tool) — no auth, no deployment complexity needed
 - **Tech stack**: Python 3.12, uv, Streamlit, DuckDB/Parquet, scikit-learn, XGBoost, LightGBM
 
@@ -64,4 +73,4 @@ Accurate, data-driven bracket predictions that give a competitive edge in bracke
 | Auto-fetch bracket from ESPN | Eliminates manual data entry on Selection Sunday | Good — pipeline ready, CSV fallback tested |
 
 ---
-*Last updated: 2026-03-10 after v1.0 milestone*
+*Last updated: 2026-03-13 after v1.1 milestone start*

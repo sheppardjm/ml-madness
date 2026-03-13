@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-10)
+See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Accurate, data-driven bracket predictions that give a competitive edge in bracket challenges — model must produce better-than-seed-based predictions validated against historical tournament results.
-**Current focus:** v1.0 shipped. Planning next milestone or Selection Sunday data refresh.
+**Current focus:** v1.1 — Selection Sunday data refresh, pool strategy optimizer, UI enrichment, model retrain.
 
 ## Current Position
 
-Phase: v1.0 complete (10 phases, 37 plans)
-Plan: N/A — between milestones
-Status: v1.0 MVP shipped. Ready for `/gsd:new-milestone` or Selection Sunday prep.
-Last activity: 2026-03-10 — v1.0 milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-13 — Milestone v1.1 started
 
-Progress: [██████████] v1.0 complete
+Progress: [░░░░░░░░░░] v1.1 starting
 
 ## Accumulated Context
 
@@ -27,18 +27,20 @@ Key decisions carried forward:
 - cbbdata is the data source (free Torvik metrics)
 - DuckDB + Parquet is the storage layer
 
-### Pending Todos
+### Data Status (as of 2026-03-13)
 
-- Refresh current_season_stats.parquet when cbbdata indexes 2025-26 season (check /api/torvik/ratings?year=2026 for non-empty barthag)
-- On Selection Sunday (2026-03-15): run `uv run python -m src.ingest.fetch_bracket` to confirm auto-fetch returns 68 teams; if <68, populate data/seeds/bracket_manual.csv
+- cbbdata has NOT indexed 2025-26 season — API returns 2024-25 archive as proxy
+- Bracket fetch pipeline verified green — ESPN returns 0 teams (expected pre-Sunday), CSV fallback ready
+- Team resolution: 64/64 test teams resolved, stats coverage: 64/64
 
 ### Blockers/Concerns
 
-- [Important]: current_season_stats.parquet contains 2024-25 season metrics as proxy — refresh when cbbdata indexes 2025-26
-- [Time-sensitive]: Must run bracket fetch on/after Selection Sunday (2026-03-15 after 6 PM ET); CSV fallback is ready if ESPN auto-fetch fails
+- [Important]: cbbdata 2025-26 data not yet available — must check again before/on Selection Sunday
+- [Time-sensitive]: Selection Sunday 2026-03-15 after 6 PM ET — bracket fetch window
+- [Dependency]: Model retrain blocked until 2025-26 season data available from cbbdata
 
 ## Session Continuity
 
-Last session: 2026-03-10
-Stopped at: v1.0 milestone archived
+Last session: 2026-03-13
+Stopped at: v1.1 milestone initialization — defining requirements
 Resume file: None
