@@ -79,31 +79,31 @@ Deferred to v2.0 or post-tournament.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAB-01 | TBD | Pending |
-| STAB-02 | TBD | Pending |
-| POOL-01 | TBD | Pending |
-| POOL-02 | TBD | Pending |
-| POOL-03 | TBD | Pending |
-| POOL-04 | TBD | Pending |
-| POOL-05 | TBD | Pending |
-| UIMX-01 | TBD | Pending |
-| UIMX-02 | TBD | Pending |
-| UIMX-03 | TBD | Pending |
-| MODL-01 | TBD | Pending |
-| MODL-02 | TBD | Pending |
-| MODL-03 | TBD | Pending |
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
-| SDAY-01 | TBD | Pending |
-| SDAY-02 | TBD | Pending |
+| STAB-01 | Phase 11 | Pending |
+| STAB-02 | Phase 11 | Pending |
+| POOL-01 | Phase 13 | Pending |
+| POOL-02 | Phase 13 | Pending |
+| POOL-03 | Phase 13 | Pending |
+| POOL-04 | Phase 13 | Pending |
+| POOL-05 | Phase 13 | Pending |
+| UIMX-01 | Phase 14 | Pending |
+| UIMX-02 | Phase 14 | Pending |
+| UIMX-03 | Phase 14 | Pending |
+| MODL-01 | Phase 15 | Pending |
+| MODL-02 | Phase 15 | Pending |
+| MODL-03 | Phase 12 | Pending |
+| DATA-01 | Phase 12 | Pending |
+| DATA-02 | Phase 12 | Pending |
+| DATA-03 | Phase 12 | Pending |
+| DATA-04 | Phase 12 | Pending |
+| SDAY-01 | Phase 16 | Pending |
+| SDAY-02 | Phase 16 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after v1.1 roadmap creation — all 19 requirements mapped to phases 11-16*
