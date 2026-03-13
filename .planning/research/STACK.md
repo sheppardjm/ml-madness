@@ -1,221 +1,192 @@
-# Technology Stack: NCAA Men's Basketball Bracket Predictor
+# Technology Stack: NCAA Bracket Predictor — Milestone 2 Additions
 
 **Project:** madness2026
-**Researched:** 2026-03-02
-**Research mode:** Ecosystem (Stack dimension)
+**Researched:** 2026-03-13
+**Research mode:** Stack dimension for milestone 2 (pool optimizer, UI enrichment, model retraining)
+**Scope:** NEW additions only. Existing validated stack (Python 3.12, uv, Streamlit 1.55.0, DuckDB 1.4.4, XGBoost 3.2.0, LightGBM 4.6.0, scikit-learn 1.8.0, pandas 3.x, numpy 2.4.x, Optuna, Plotly) is not re-researched.
 
 ---
 
-## Recommended Stack
+## TL;DR: No New Dependencies Required
 
-This is a Python-first project. The ML ecosystem lives entirely in Python. The web UI can be either a Streamlit app (single-process, easy) or a React frontend hitting a FastAPI backend (harder, better UX). See "Alternatives Considered" for the tradeoff analysis — **Streamlit is recommended for personal use**.
-
----
-
-### Python Runtime
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Python | 3.12 | Runtime | 3.12 is the sweet spot: fully stable, supported by all ML libraries (XGBoost 3.2 requires >=3.10, pandas 3.0 requires >=3.11, scikit-learn 1.8 requires >=3.11). 3.13 has experimental JIT but ecosystem still catching up. |
-
-**Confidence: HIGH** — Verified against PyPI requirements for all major dependencies.
+The three milestone features can be built entirely on the existing stack. Every library needed is already installed. This section documents WHY each approach was chosen and what NOT to add.
 
 ---
 
-### Data Acquisition
+## Feature 1: Pool Strategy Optimizer (Contrarian Picks)
 
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| CBBpy | 2.1.2 | ESPN game/boxscore scraper | Pure-Python, actively maintained (Jan 2025), pulls from ESPN. Provides game metadata, boxscores, play-by-play, schedules. Works for historical seasons back to ESPN's data. |
-| requests | latest | HTTP client | Used internally by CBBpy; also needed for calling unofficial ESPN API endpoints directly |
-| beautifulsoup4 | latest | HTML parsing | Dependency of CBBpy; also useful for scraping barttorvik.com data |
+### What It Needs
 
-**Confidence: HIGH** — CBBpy version verified at PyPI. ESPN unofficial API endpoints confirmed to exist and require no auth key.
+Pool optimization for large bracket pools (100+ entrants) requires:
+1. **Expected Value (EV) calculation** — compare a team's win probability to its expected ownership percentage in the field, weighted by scoring round
+2. **Contrarian leverage scoring** — identify teams whose win probability exceeds their pick share
+3. **Bracket generation** — produce a single concrete bracket that maximizes expected finish position, not just probability of winning any individual game
 
-**Key data sources (free, no subscription):**
+### Stack Decision: Pure numpy + existing Monte Carlo
 
-| Source | Access Method | Data Provided | Confidence |
-|--------|--------------|---------------|------------|
-| ESPN unofficial API | Direct HTTP GET (no auth) | Game scores, schedules, team metadata, postseason games | MEDIUM — unofficial, no stability guarantee |
-| CBBpy (ESPN-backed) | `pip install CBBpy` | Game boxscores, play-by-play, schedules (2003+) | HIGH — actively maintained |
-| cbbdata API (barttorvik-backed) | Free API key via registration | Adjusted efficiency, NET rankings, game predictions, Torvik ratings (2008+) | MEDIUM — free key needed, R-centric but REST API accessible from Python |
-| Kaggle March Machine Learning Mania | Dataset download | Historical tournament results, seeds, team stats (2003-2025) | HIGH — official Kaggle competition dataset, updated annually |
-| barttorvik.com | Web scraping (no official API) | T-Rank ratings, adjusted efficiency, tempo-free stats | LOW — scraping-only, site uses Cloudflare bot protection |
-| Warren Nolan (warrennolan.com) | Web scraping | NET rankings, RPI, schedule strength | LOW — scraping only, no documented API |
-| data.ncaa.com | Direct HTTP GET (JSON endpoints) | Official bracket, seeds, game results for postseason | MEDIUM — unofficial but stable pattern: `https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/{year}/{month}/{day}/scoreboard.json` |
-| Sports-Reference (college basketball) | Web scraping with rate limiting | Historical stats (limited, 20 req/min rate limit) | MEDIUM — rate-limited but documented |
+**Use:** `numpy` (already installed, 2.4.2) for vectorized EV math. No new optimization library.
 
-**What replaces KenPom (paid):**
-- **Primary replacement: cbbdata API** — provides barttorvik-based adjusted efficiency (barthag, adjOE, adjDE, tempo) which is methodologically similar to KenPom. Free API key. Updated daily during season.
-- **Secondary: Kaggle dataset** — includes precomputed efficiency ratings for tournament teams each year going back to 2003.
-- **Direct barttorvik.com scraping** is risky due to Cloudflare protection; cbbdata API is the correct free path.
+**Why not scipy.optimize:** scipy.optimize (1.17.1, already installed) is designed for continuous function minimization. Pool bracket optimization is a discrete combinatorial problem — 63 binary pick decisions. `scipy.optimize.differential_evolution` or `minimize` adds complexity without benefit over a direct EV-greedy approach for this domain. The existing Monte Carlo simulator (10K runs) already produces per-team advancement probabilities per round; the optimizer just needs to compare those against ownership percentages.
 
----
+**Why not PuLP / OR-Tools / integer programming:** The bracket structure imposes sequential dependencies (you can't pick a team to win the Elite 8 without picking them to win the Sweet 16). This makes the problem a tree-structured decision, not a flat ILP. An EV-greedy tree traversal (pick the highest EV team per slot, propagating forward) is both correct and fast, and requires no new dependency.
 
-### Data Storage
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| DuckDB | 1.4.4 | Primary analytical store | Serverless, file-based, columnar, 17x faster than pandas for analytical queries. Query Parquet and CSV files directly. Zero-copy pandas integration. Perfect for a personal project — no server to manage. |
-| Parquet (via pandas/pyarrow) | — | Historical data archive | Store season data as Parquet files. DuckDB queries them directly without loading into memory. Portable. |
-| SQLite | stdlib | Bracket state, picks, run metadata | Relational state that changes frequently (bracket picks, simulation runs, model run logs). SQLite handles OLTP, DuckDB handles analytics. |
-
-**Confidence: HIGH** — DuckDB version verified at PyPI. DuckDB vs SQLite split is a well-documented pattern for analytics-heavy personal projects.
-
----
-
-### ML / Feature Engineering
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| pandas | 3.0.1 | Data manipulation and feature engineering | Standard for tabular sports data. Required for CBBpy output. |
-| numpy | latest stable | Numerical operations | Foundation for all ML libraries |
-| scikit-learn | 1.8.0 | Baseline models, preprocessing, cross-validation, stacking | Logistic Regression, Random Forest, Pipeline, StratifiedKFold, StackingClassifier. Community-verified ~67-75% accuracy on tournament data. |
-| XGBoost | 3.2.0 | Primary gradient boosted tree model | Most frequently used model in winning Kaggle March Mania entries. Confirmed current version is 3.2.0 (not 2.x as training data might suggest). Requires Python >=3.10. |
-| LightGBM | 4.6.0 | Secondary gradient boosted tree model | Faster training than XGBoost on large feature sets. Slightly different inductive bias — adds diversity to ensemble. |
-| optuna | latest | Hyperparameter tuning | Bayesian optimization for XGBoost/LightGBM hyperparameters. Preferred over GridSearchCV for this domain. |
-| joblib | latest | Model persistence and parallelism | Serialize trained models to disk. Parallelize cross-validation folds. |
-
-**Confidence: HIGH for versions** — XGBoost 3.2.0, scikit-learn 1.8.0, LightGBM 4.6.0, pandas 3.0.1 all verified at PyPI as of 2026-03-02.
-
-**Model architecture: Stacking ensemble**
-
-The recommended approach based on multiple Kaggle winning solutions and NCAA bracket prediction research:
-
+**The core math (no new library needed):**
 ```
-Layer 1 (Base models, trained with cross-validation):
-  - XGBoost classifier (primary)
-  - LightGBM classifier
-  - Logistic Regression (interpretable baseline)
-  - Random Forest (scikit-learn)
+For each slot, EV of picking team T =
+    P(T wins this slot) * round_points / (ownership(T, slot) * n_entrants)
 
-Layer 2 (Meta-learner):
-  - Logistic Regression on base model out-of-fold predictions
-
-Output: Win probability for team A vs team B
+where:
+    P(T wins slot)    = from existing Monte Carlo advancement_probs
+    round_points      = scoring table (standard ESPN: 1/2/4/8/16/32 or user-configurable)
+    ownership(T, slot) = user-supplied estimate of field pick percentage
+    n_entrants        = pool size parameter (default 150)
 ```
 
-Key features to engineer:
-- Seed difference (SEED_DIFF) — single strongest predictor
-- Adjusted offensive efficiency (adjOE) delta
-- Adjusted defensive efficiency (adjDE) delta
-- Barthag (projected win % vs average D1 opponent)
-- Tempo differential
-- Strength of schedule
-- Win % in last 10 games
-- Conference strength
-- Historical seed vs seed win rates
+**Ownership percentage input:** User-entered via Streamlit sliders or numeric inputs. No external data source needed for MVP. The app already has team-level advancement probabilities from Monte Carlo; ownership percentages are the only new user input.
+
+**Confidence: HIGH** — Verified that scipy 1.17.1 and numpy 2.4.2 are already installed in the project venv. The EV formula is well-established in bracket pool literature (PoolGenius, ActionNetwork, FTN Fantasy all use this framework). No novel math required.
+
+### What NOT to Add
+
+| Library | Why Not |
+|---------|---------|
+| scipy.optimize solvers | Already installed; continuous solvers are wrong tool for discrete bracket picks |
+| PuLP / OR-Tools | Adds a new dependency for a problem that doesn't need ILP; sequential bracket constraints fit greedy tree traversal better |
+| cvxpy | Overkill for this domain; adds compile dependency for C extension |
+| Any "bracket optimizer" PyPI package | None exist that integrate with the existing Monte Carlo output |
 
 ---
 
-### Web Visualization (Bracket UI)
+## Feature 2: Richer Matchup Context in Streamlit UI
 
-**Recommendation: Streamlit for personal use**
+### What It Needs
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Streamlit | 1.54.0 | Full web application framework | Single-process Python. No separate frontend build. Native integration with pandas/plotly. Sufficient for single-user personal tool. Ships fast. |
-| Plotly | latest | Win probability charts, confidence visualizations | Integrates directly with Streamlit via `st.plotly_chart`. Interactive hover, bar charts for probability distributions. |
-| react-tournament-brackets | npm (g-loot) | Bracket visualization component | Only option if going React route. Supports single elimination, SVG viewer with pan/zoom, customizable themes. Last meaningful commit unclear but actively used. |
+When a user clicks a matchup in the bracket, show:
+- Head-to-head comparison: adjOE, adjDE, barthag, tempo, wab (all already in `current_season_stats.parquet`)
+- Historical seed vs seed performance (already in `tournament_games.parquet`)
+- Win probability bar/gauge
+- Optionally: conference, record if available
 
-**Why Streamlit over React+FastAPI for this project:**
-- Personal use only — single user, no concurrency needs
-- No auth layer needed
-- Python all the way through — no context switching
-- `st.session_state` handles bracket pick overrides
-- Can render bracket as SVG/HTML using Plotly or custom HTML components
-- Time constraint (Selection Sunday 2026) makes simpler architecture lower risk
+### Stack Decision: st.dialog (already in Streamlit 1.55.0)
 
-**Streamlit bracket rendering approach:**
-Streamlit does not have a native bracket component. Options:
-1. `st.components.v1.html()` — inject a custom HTML/SVG bracket rendered server-side in Python
-2. Embed a small React bracket widget as a static component using `streamlit-components`
-3. Render bracket as a Plotly figure using nested shapes (custom, more work)
+**Use:** `st.dialog` (Streamlit 1.55.0, already installed) for click-to-expand matchup detail panels.
 
-**Recommendation:** Use `st.components.v1.html()` with a self-contained SVG bracket generated in Python. The bracket structure (68 teams, known positions) is fixed enough that a programmatic SVG is feasible.
+**Why st.dialog over alternatives:**
 
----
+| Approach | Assessment |
+|----------|-----------|
+| `st.dialog` | Confirmed available in Streamlit 1.55.0. Modal overlay, supports dataframes, charts, and metric widgets inside. Width parameter: "small"/"medium"/"large". Dismissible by default. One dialog open at a time — fine for single-user personal tool. **Recommended.** |
+| `st.popover` | Also available in 1.55.0 (with `on_change` and `key` params for programmatic open/close). Better for non-modal inline detail. Works for "hover info" style UX. Alternative approach. |
+| Custom Streamlit component | Not needed; st.dialog provides sufficient capability |
+| st.expander | Already used for override controls; reusing would be cluttered |
 
-### Bracket Auto-Fetch (Selection Sunday)
+**Recommendation:** Use `st.dialog` for the primary matchup detail panel (modal, focused, can show a full stats table). Use `st.popover` as a lighter-weight hover alternative for quick probability context inline with the bracket.
 
-| Component | Approach | Confidence |
-|-----------|----------|------------|
-| Primary: ESPN unofficial API | `GET https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=YYYYMMDD&groups=50` then filter `bracketRound` field | MEDIUM — unofficial, works as of 2025 |
-| Fallback: data.ncaa.com | `GET https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/{year}/{month}/{day}/scoreboard.json` | MEDIUM — JSON format, has historically been stable |
-| Fallback: Manual CSV | Hand-enter 68 teams and seeds from bracket announcement | LOW effort, guaranteed to work |
+**Stat display:** `st.dataframe` with `st.column_config` (already used in the advancement table) can render a side-by-side comparison table for the two teams. `st.plotly_chart` (Plotly 6.6.0, already installed) for a bar chart comparing efficiency metrics.
 
-**Important:** No official, documented, stable API exists for the NCAA tournament bracket. Both ESPN and NCAA.com provide unofficial JSON endpoints that have been used by developers but carry no stability guarantee. **Build the fetcher with graceful fallback to manual CSV entry.** This is a one-time operation per year.
+**Data source for stats:** `data/processed/current_season_stats.parquet` (already populated by `cbbdata_client.py`). Contains barthag, adj_o, adj_d, adj_t, wab for all D1 teams. Already loaded in the UI via `src/ui/data_loader.py`.
 
----
+**Historical seed performance:** `data/processed/tournament_games.parquet` already has full game history (2008-2025). A DuckDB query against this file for "seed X vs seed Y historically" is sub-millisecond. DuckDB (1.4.4) is already the storage layer.
 
-### Development Environment
+**Confidence: HIGH** — st.dialog and st.popover confirmed present in installed Streamlit 1.55.0. All required data already exists in processed Parquet files.
 
-| Technology | Purpose | Why |
-|------------|---------|-----|
-| uv | Package manager and virtual env | Faster than pip, replaces pip+virtualenv. Modern Python tooling standard as of 2025. |
-| Jupyter notebooks | EDA and model development | Standard for iterative ML work. Use for data exploration, feature engineering, model training. |
-| pytest | Testing | Standard Python test framework. Test data pipeline and probability calculations. |
-| python-dotenv | Config management | Store any API keys (cbbdata) in `.env`. Keep out of version control. |
+### What NOT to Add
+
+| Library | Why Not |
+|---------|---------|
+| streamlit-extras / third-party components | Not needed; native Streamlit containers (st.dialog, st.popover, st.dataframe, st.metric) cover the requirement |
+| Altair | Plotly is already installed; adding Altair adds a dependency for chart parity |
+| CBBpy (for live game stats) | The tournament hasn't started; in-season game stats aren't relevant until first round begins (March 20) |
+| Pandas Styler | st.column_config covers color-coding and progress bars without Styler compatibility issues |
 
 ---
 
-## Alternatives Considered
+## Feature 3: Model Retraining Workflow
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Web UI | Streamlit | React + FastAPI | React requires building a separate frontend, JS build tooling, and a Python API layer. 3x more code for same personal-use result. Only worthwhile if you want a polished public-facing app. |
-| Web UI | Streamlit | Dash (Plotly) | Dash has a steeper learning curve than Streamlit. Less community activity. Streamlit has better DX for ML projects. |
-| ML gradient boosting | XGBoost + LightGBM | PyTorch neural net | Neural nets are overcomplicated for this domain. Tabular data with ~100 features per matchup. Gradient boosted trees consistently outperform neural nets on tabular sports data. Lower interpretability gain for added complexity. |
-| Data storage | DuckDB | PostgreSQL | PostgreSQL requires a running server. This is a local personal project — no server overhead needed. DuckDB is embedded. |
-| Data storage | DuckDB | Pure pandas | pandas loads everything into memory. DuckDB queries on-disk Parquet lazily. With 20 years of season data, memory efficiency matters. |
-| Data source | CBBpy + cbbdata | hoopR (R package) | hoopR is R-native. Python project should stay in Python. CBBpy provides equivalent ESPN-sourced data. |
-| Data source | Kaggle dataset | Building scraper from scratch | Kaggle March Mania dataset has 20+ years of structured tournament data in CSV format. Building an equivalent scraper takes significant time. Use Kaggle for historical backfill, CBBpy for current season. |
-| Package manager | uv | pip/conda | conda is heavy and slow. pip without lockfiles leads to reproducibility issues. uv is faster and modern. |
-| Bracket visualization | Python SVG via st.components | D3.js | D3 requires full JS/build environment. For a bracket with 67 games and fixed structure, programmatic SVG is sufficient and stays in Python. |
+### What It Needs
+
+When cbbdata indexes 2025-26 season data (expected: after Selection Sunday 2026-03-15 or post-tournament 2026-04), the user needs to:
+1. **Ingest new season:** Fetch Torvik ratings for year=2026 via existing `cbbdata_client.py` (already handles the archive fallback)
+2. **Append training data:** Add 2026 tournament results to `tournament_games.parquet` and `historical_torvik_ratings.parquet`
+3. **Retrain ensemble:** Re-run `src/models/ensemble.py` `build_ensemble()` with updated data (already parameterized by `train_seasons`)
+4. **Validate:** Re-run backtesting harness to confirm Brier score didn't regress
+5. **Swap artifact:** Replace `models/ensemble.joblib` with new artifact
+
+### Stack Decision: Existing joblib + existing training pipeline
+
+**Use:** `joblib` (1.5.3, already installed) for serialization. No new retraining framework.
+
+**Why not MLflow / DVC / Weights & Biases:** This is a personal project retrained once per year. MLflow/DVC add experiment tracking server setup, config files, and conceptual overhead for a problem that's solved with a shell script and the existing `build_ensemble()` function. Overkill.
+
+**Why not skops.io:** The existing artifact already stores sklearn/xgboost/lightgbm version metadata in the `.joblib` dict (`m['sklearn_version']`, `m['xgboost_version']`, `m['lightgbm_version']`). skops.io is for security-sensitive model sharing; unnecessary here.
+
+**The retraining workflow is already mostly built:**
+- `src/models/ensemble.py` `build_ensemble()` trains from scratch given a dataset
+- `src/models/features.py` `build_matchup_dataset()` assembles training data from Parquet
+- `src/ingest/cbbdata_client.py` handles year=2026 data fetch with archive fallback
+- `models/selected.json` acts as the model registry (stores Brier, train seasons, generated_at)
+- The existing artifact stores all version metadata needed to detect drift
+
+**What needs to be added (code, not new libraries):**
+1. A `scripts/retrain.py` CLI script that orchestrates: ingest → build features → train → validate → write artifact
+2. A version bump check: compare new Brier against `selected.json` `mean_brier` before overwriting
+
+**The cbbdata data availability constraint (already documented in codebase):**
+The `cbbdata_client.py` comment at line 113 notes: "As of 2026-03, cbbdata's ratings endpoint only has complete year-end data through year=2024. Year=2025 returns rows without barthag populated. Year=2026 (2025-26 season) returns empty." The archive fallback handles this. After the tournament ends (early April 2026), cbbdata typically indexes the final season ratings within days to weeks — the fallback will resolve automatically when that data appears.
+
+**Confidence: HIGH** — Verified by reading `src/ingest/cbbdata_client.py` directly. The data pipeline for retraining is implemented; only an orchestration script is missing.
+
+### What NOT to Add
+
+| Library | Why Not |
+|---------|---------|
+| MLflow | Experiment tracking server for a once-per-year personal retrain is architectural overkill |
+| DVC | Data versioning adds `.dvc` metadata files and remote storage config; the Parquet files are small enough to version with git-lfs or just leave local |
+| Weights & Biases | Requires account, API key, cloud dependency; wrong fit for local personal project |
+| ONNX | ONNX serialization loses the Python predict_fn integration that drives the bracket simulator; adds a runtime dependency for no portability benefit |
+| Prefect / Airflow | Workflow orchestration tools for multi-step pipelines; a 50-line Python script is sufficient |
+| skops.io | Security-focused serialization for model sharing; this model is never shared externally |
 
 ---
 
-## Versions Summary (Verified 2026-03-02)
+## Confirmed Installed Versions (Verified 2026-03-13)
 
-| Package | Verified Version | Source |
-|---------|-----------------|--------|
-| Python | 3.12 (recommended) | PyPI constraint analysis |
-| XGBoost | 3.2.0 | pypi.org/project/xgboost |
-| scikit-learn | 1.8.0 | pypi.org/project/scikit-learn |
-| LightGBM | 4.6.0 | pypi.org/project/lightgbm |
-| pandas | 3.0.1 | pypi.org/project/pandas |
-| DuckDB | 1.4.4 | pypi.org/project/duckdb |
-| Streamlit | 1.54.0 | pypi.org/project/streamlit |
-| FastAPI | 0.135.1 | pypi.org/project/fastapi (alt only) |
-| CBBpy | 2.1.2 | pypi.org/project/CBBpy |
+These packages are already present in the project `.venv` and satisfy all milestone 2 requirements:
+
+| Package | Installed Version | Relevant For |
+|---------|------------------|--------------|
+| streamlit | 1.55.0 | UI enrichment (st.dialog, st.popover, st.dataframe) |
+| scipy | 1.17.1 | Pool optimizer (already installed, not needed for MVP approach) |
+| numpy | 2.4.2 | Pool EV math (vectorized advancement prob comparison) |
+| joblib | 1.5.3 | Model retraining persistence |
+| plotly | 6.6.0 | Matchup stats visualization |
+| duckdb | 1.4.4 | Historical seed performance queries |
+| pandas | 3.0.1+ | Data manipulation throughout |
+
+**scipy** is already installed as a transitive dependency. It is not needed for pool optimization (the EV-greedy approach doesn't use scipy.optimize), but it's available if the approach needs to evolve.
 
 ---
 
-## Installation
+## pyproject.toml Changes Required
 
-```bash
-# Create virtual environment with uv
-uv venv --python 3.12
-source .venv/bin/activate
+**None.** All dependencies are already present. The milestone 2 features are pure code additions using the existing stack.
 
-# Data acquisition
-uv pip install CBBpy requests beautifulsoup4
-
-# ML stack
-uv pip install pandas numpy scikit-learn xgboost lightgbm optuna joblib pyarrow
-
-# Storage
-uv pip install duckdb
-
-# Web UI
-uv pip install streamlit plotly
-
-# Dev tools
-uv pip install jupyter pytest python-dotenv
-
-# Optional: notebook support
-uv pip install ipykernel
+If the retraining workflow needs a CLI entry point, add to `pyproject.toml`:
+```toml
+[project.scripts]
+retrain = "scripts.retrain:main"
 ```
+This requires no new `dependencies` entry.
+
+---
+
+## Integration Points Summary
+
+| Feature | Reads From | Writes To | Key Existing Code |
+|---------|-----------|----------|-------------------|
+| Pool optimizer | `mc_result["advancement_probs"]` (in-memory) | session state (suggested brackets) | `src/simulator/simulate.py` MC output |
+| Matchup UI | `data/processed/current_season_stats.parquet`, `data/processed/tournament_games.parquet` | none | `src/ui/data_loader.py`, `app.py` |
+| Model retraining | `data/processed/*.parquet`, cbbdata API | `models/ensemble.joblib`, `models/selected.json` | `src/models/ensemble.py`, `src/ingest/cbbdata_client.py` |
 
 ---
 
@@ -223,19 +194,17 @@ uv pip install ipykernel
 
 | Claim | Source | Confidence |
 |-------|--------|------------|
-| XGBoost version 3.2.0 | https://pypi.org/project/xgboost/ | HIGH |
-| scikit-learn version 1.8.0, Python >=3.11 | https://pypi.org/project/scikit-learn/ | HIGH |
-| LightGBM version 4.6.0 | https://pypi.org/project/lightgbm/ | HIGH |
-| pandas version 3.0.1, Python >=3.11 | https://pypi.org/project/pandas/ | HIGH |
-| DuckDB version 1.4.4 | https://pypi.org/project/duckdb/ | HIGH |
-| Streamlit version 1.54.0, Python >=3.10 | https://pypi.org/project/streamlit/ | HIGH |
-| FastAPI version 0.135.1 | https://pypi.org/project/fastapi/ | HIGH |
-| CBBpy version 2.1.2, ESPN-backed | https://pypi.org/project/CBBpy/ | HIGH |
-| cbbdata API is free, barttorvik-backed | https://cbbdata.aweatherman.com/articles/release.html | MEDIUM |
-| ESPN unofficial API endpoints | https://github.com/pseudo-r/Public-ESPN-API | MEDIUM |
-| data.ncaa.com JSON bracket endpoint | Web search, developer community reports | LOW — verify when bracket is published |
-| XGBoost/LightGBM commonly used for bracket prediction | https://blog.collegefootballdata.com/talking-tech-march-madness-xgboost/, https://www.kaggle.com/code/sadettinamilverdil/ncaa-basketball-predictions-with-xgboost | MEDIUM |
-| Kaggle March Mania 2025 dataset | https://www.kaggle.com/competitions/march-machine-learning-mania-2025/ | HIGH |
-| react-tournament-brackets library | https://github.com/g-loot/react-tournament-brackets | MEDIUM — version unclear |
-| DuckDB 17x faster than pandas for analytics | https://www.digitalocean.com/community/tutorials/duckdb-complements-pandas-for-large-scale-analytics | MEDIUM |
-| barttorvik.com uses Cloudflare bot protection | Direct WebFetch attempt returned "Verifying your browser, please wait..." | HIGH |
+| Streamlit 1.55.0 installed, st.dialog available | `python -c "import streamlit"` in project venv | HIGH |
+| scipy 1.17.1 installed | `python -c "import scipy"` in project venv | HIGH |
+| numpy 2.4.2 installed | `python -c "import numpy"` in project venv | HIGH |
+| joblib 1.5.3 installed | `python -c "import joblib"` in project venv | HIGH |
+| Streamlit 1.55.0 release notes (st.dialog, st.popover, on_change) | https://docs.streamlit.io/develop/quick-reference/release-notes/2026 | HIGH |
+| st.dialog supports dataframes/charts/metrics as container | https://docs.streamlit.io/develop/api-reference/execution-flow/st.dialog | HIGH |
+| st.popover parameters (on_change, key, width) | https://docs.streamlit.io/develop/api-reference/layout/st.popover | HIGH |
+| scipy 1.17.1 current latest version | https://pypi.org/project/SciPy/ | HIGH |
+| joblib 1.5.3 current latest stable | WebSearch pypi.org/project/joblib | MEDIUM |
+| sklearn persistence: no cross-version loading guarantee | https://scikit-learn.org/stable/model_persistence.html | HIGH |
+| Pool optimizer EV formula (advancement_prob * points / ownership * N) | Establish The Run 2025 pool strategy, ActionNetwork contrarian bracket guide | MEDIUM — industry-standard formulation, not a citable spec |
+| cbbdata year=2026 returns empty, archive fallback works | Direct code read: `src/ingest/cbbdata_client.py` line 113 comment + archive logic | HIGH |
+| Ensemble artifact stores version metadata | Direct inspection: `joblib.load('models/ensemble.joblib').keys()` | HIGH |
+| Kaggle March Machine Learning Mania 2026 dataset available | https://www.kaggle.com/competitions/march-machine-learning-mania-2026 | HIGH |

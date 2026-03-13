@@ -1,19 +1,22 @@
 # Project Research Summary
 
-**Project:** madness2026
-**Domain:** ML-powered NCAA Men's Basketball Tournament Bracket Predictor (personal use)
-**Researched:** 2026-03-02
-**Confidence:** HIGH (stack versions verified at PyPI; architecture patterns verified against open-source projects and academic papers; feature set verified against multiple published tools)
+**Project:** madness2026 — NCAA Bracket Predictor v1.1
+**Domain:** NCAA tournament bracket prediction + pool strategy optimization
+**Researched:** 2026-03-13
+**Milestone:** v1.1 — pool strategy optimizer, UI matchup enrichment, model retraining
+**Confidence:** HIGH (stack verified against live venv; architecture derived from direct codebase audit of 12,400+ lines; pitfalls grounded in both code inspection and practitioner sources)
+
+> **Note:** This file supersedes the 2026-03-02 v1.0 SUMMARY.md. The v1.0 summary's phase structure and findings remain valid for the foundational pipeline. This document covers only the v1.1 additions. For v1.0 context, see git history.
 
 ---
 
 ## Executive Summary
 
-This is a Python-first ML pipeline with a Streamlit front end. The domain is well-understood: dozens of academic papers, Kaggle competitions, and open-source projects have tackled NCAA bracket prediction since 2003. The research consensus is clear — adjusted efficiency metrics (offensive and defensive, KenPom-style) are the strongest predictors, gradient boosted trees (XGBoost, LightGBM) perform best on tabular sports data, and stacking ensembles outperform single-model approaches. The practical accuracy ceiling for this problem is approximately 74–76% per-game accuracy, which is an empirical property of the domain, not a solvable engineering problem. The goal is a well-calibrated model that produces reliable win probabilities across both chalk years (2025) and high-chaos years (2022, 2023).
+The v1.1 milestone adds three capabilities to an already-working bracket predictor: a pool strategy optimizer for large (100+) entrant pools, richer matchup context in the Streamlit UI, and a model retraining workflow for 2025-26 season data. The critical finding across all four research dimensions is that **no new dependencies are required** — the entire milestone can be delivered using the installed stack (numpy 2.4.2, Streamlit 1.55.0, DuckDB 1.4.4, joblib 1.5.3, Plotly 6.6.0). The data needed for all three features already exists in the processed Parquet files; the work is pure code addition on top of a validated foundation.
 
-The recommended approach is a five-layer pipeline: data ingestion (CBBpy + cbbdata API + Kaggle historical dataset), feature engineering (efficiency differentials, tempo, strength of schedule, recent form), a stacking ensemble trained with temporal cross-validation, a Monte Carlo bracket simulator, and a Streamlit UI with programmatic SVG bracket rendering. The data storage split — DuckDB for analytical queries against Parquet files, SQLite for bracket state and run metadata — is the right choice for a single-user local project with 20 years of historical data. The entire stack stays in Python, which matters because the ML ecosystem has no viable alternative runtime.
+The most important architectural insight is that the three features are largely decoupled: the pool optimizer reads `mc_result["advancement_probs"]` already cached in the UI; matchup context reads `stats_lookup` already loaded in memory; model retraining is a CLI script that runs independently of the Streamlit app. This decoupling makes it possible to build and smoke-test each feature in isolation — which is essential given the Selection Sunday deadline of 2026-03-15 (2 days from research date) and tournament tip-off on 2026-03-19.
 
-The most dangerous risks are all correctness risks, not complexity risks: data leakage (using future information in features), temporal CV violations (treating tournament years as exchangeable), miscalibrated probabilities (a model that assigns 90% confidence to 65% outcomes), and over-reliance on 2025 for backtesting (a historically chalk year that flatters chalk-biased models). Every one of these is preventable with deliberate design choices enforced in Phase 1–3. There is one hard external dependency: the bracket releases on Selection Sunday 2026, and the auto-fetch pipeline must be ready before that date. Manual CSV fallback is required.
+The dominant risk is not technical but temporal and conceptual. The pool optimizer is the highest-value feature and must not conflate win probability with expected pool score — this is a known conceptual failure mode documented across multiple practitioner sources. Under the deadline, UI enrichment (visually satisfying but lower priority) must be time-boxed to prevent consuming hours that belong to the optimizer. A hard go/no-go decision on cbbdata 2025-26 data availability must be made by EOD 2026-03-14 — the data is confirmed unavailable as of 2026-03-13, and the fallback (v1.0 model with 2024-25 proxy data, Brier 0.1692) is a fully valid deployment path. The v1.0-stable tag must be created before any v1.1 development begins.
 
 ---
 
@@ -21,157 +24,179 @@ The most dangerous risks are all correctness risks, not complexity risks: data l
 
 ### Recommended Stack
 
-The entire stack is Python 3.12, with no JavaScript except optionally embedded via `st.components.v1.html()` for the bracket SVG. All library versions are verified at PyPI as of 2026-03-02. The data acquisition layer uses CBBpy 2.1.2 (ESPN-backed, actively maintained) for current-season data and the Kaggle March Machine Learning Mania dataset for historical backfill — this combination avoids building a custom scraper from scratch. The cbbdata API (barttorvik-backed, free key) provides KenPom-equivalent adjusted efficiency metrics without a paid subscription. Direct barttorvik.com scraping is explicitly blocked by Cloudflare and should not be attempted.
+No new dependencies required. Every capability needed for v1.1 is provided by already-installed packages. The relevant confirmed versions are Streamlit 1.55.0 (`st.dialog` and `st.popover` available), numpy 2.4.2 (vectorized EV math), DuckDB 1.4.4 (historical seed queries), joblib 1.5.3 (model artifact serialization), and Plotly 6.6.0 (efficiency metric charts). scipy 1.17.1 is installed as a transitive dependency but is not needed — the pool optimizer's EV-greedy tree traversal fits the bracket's sequential constraint structure better than continuous optimization solvers.
 
-For ML, XGBoost 3.2.0 and LightGBM 4.6.0 are the primary models, confirmed against multiple Kaggle winning solutions. scikit-learn 1.8.0 handles the stacking ensemble, logistic regression baseline, and cross-validation. DuckDB 1.4.4 + Parquet handles analytical queries; SQLite handles bracket state. Streamlit 1.54.0 is the right UI choice for personal use — it eliminates a React+FastAPI build, keeps everything in Python, and ships fast ahead of Selection Sunday. The one trade-off is bracket visualization: Streamlit has no native bracket component, so programmatic SVG via `st.components.v1.html()` is required.
+**Core technologies (existing — no changes to pyproject.toml):**
 
-**Core technologies:**
-- Python 3.12: runtime — minimum version required by pandas 3.0.1 (>=3.11) and scikit-learn 1.8.0 (>=3.11)
-- CBBpy 2.1.2: current-season data acquisition — pure-Python, ESPN-backed, actively maintained Jan 2025
-- cbbdata API: adjusted efficiency metrics (Torvik/barttorvik) — free key, REST API, KenPom equivalent without subscription
-- Kaggle March Machine Learning Mania: historical backfill (2003-2025) — structured CSVs, avoids custom scraper
-- pandas 3.0.1 + DuckDB 1.4.4: data manipulation and analytical storage — DuckDB queries Parquet 17x faster than pandas in-memory
-- SQLite: bracket state, picks, simulation run logs — OLTP complement to DuckDB's OLAP
-- XGBoost 3.2.0 + LightGBM 4.6.0: primary gradient boosted models — confirmed most-used in Kaggle March Mania winning entries
-- scikit-learn 1.8.0: stacking ensemble, logistic regression baseline, StratifiedKFold — full ML pipeline support
-- optuna: hyperparameter tuning — Bayesian optimization, preferred over GridSearchCV for this domain
-- Streamlit 1.54.0: full web UI — single-process Python, no separate frontend build, ships fast
-- Plotly: win probability charts — native Streamlit integration
-- uv: package manager — faster than pip, modern Python standard as of 2025
+| Package | Version | Role in v1.1 |
+|---------|---------|--------------|
+| numpy | 2.4.2 | Pool optimizer EV calculation (`win_prob / pick_pct` vectorized across 68 teams x 7 rounds) |
+| Streamlit | 1.55.0 | `st.dialog` for matchup detail panels; `st.popover` for inline hover context; new Pool Strategy tab |
+| DuckDB | 1.4.4 | Historical seed win-rate queries (`tournament_games.parquet` joined against `seeds.parquet`) |
+| joblib | 1.5.3 | Model artifact read/write during retraining |
+| Plotly | 6.6.0 | Efficiency metric bar charts inside matchup panels |
+
+**Only new artifact needed:** `scripts/retrain.py` (~50 lines) and an optional `pyproject.toml` entry point (`retrain = "scripts.retrain:main"`). No new `dependencies` entries.
 
 ### Expected Features
 
-All four research files converge on the same feature dependency chain: data pipeline must come before feature engineering, which must come before modeling, which must come before simulation, which must come before the UI. This is not flexible — building in a different order creates rework.
+**Pool Strategy Optimizer — must have (table stakes):**
+- Value score per team per round: `value = win_prob - pick_pct` for all 68 teams, surfaced for Final Four and Championship slots (highest-leverage rounds)
+- Pick percentage input (manual): text fields for user to enter ESPN/Yahoo public pick percentages — no free structured API exists; manual entry is correct for MVP
+- Champion recommendation callout: top-2 value champion candidates with plain-language explanation
+- Pool size input: required user input, not a hardcoded constant; strategy is materially different below 50 entrants vs. above 100
 
-**Must have (table stakes):**
-- Win probability for all 63 (+ 4 First Four) tournament games — minimum viable output
-- Round-by-round advancement probabilities for all 68 teams — every credible tool produces this
-- Champion probability with confidence % — the headline output
-- Full 68-team bracket display including First Four play-in games — missing this breaks the bracket
-- Adjusted efficiency metrics as model inputs (adjOE, adjDE, barthag) — verified: 95.7% of champions since 2001 had top-22 offense and top-32 defense
-- Backtesting against multiple prior tournaments — model credibility requires demonstrated historical performance
-- Auto-fetch bracket seedings on Selection Sunday (with manual CSV fallback) — time-critical, must be ready before Selection Sunday 2026
-- Team name normalization across sources — the hardest data engineering problem; Sports-Reference, ESPN, and cbbdata all use different name formats
+**Pool Strategy Optimizer — should have (differentiators):**
+- Scoring system configuration: round weights change optimal strategy; default standard ESPN (1-2-4-8-16-32) but expose as configurable input
+- Round-specific value highlight: top 3 leverage plays across all rounds in one summary row
+- Chalk risk warning: flag when user's picks correlate too strongly with public pick percentages
 
-**Should have (differentiators — add after MVP is validated):**
-- Stacking ensemble (multiple rating systems: Torvik, NET, BPI alongside logistic regression) — demonstrably more accurate than single-model
-- Monte Carlo simulation (10,000+ runs) for confidence intervals and upset detection — required for calibration validation
-- Interactive bracket with manual override picks and downstream cascade recalculation — hardest UI feature; override in one round changes all downstream matchups
-- Pool-strategy optimization (contrarian picks for large pools) — expected value analysis; PoolGenius documents 3.1x win rate improvement
-- Predicted score/margin of victory — secondary model output, same feature set
-- Injury adjustment flag — manual override before bracket submission; as of 2026, NCAA requires official injury reports
+**Pool Strategy Optimizer — defer to post-MVP:**
+- Automated ESPN/Yahoo pick percentage scraping (fragile; changes yearly; manual entry is more reliable for MVP)
+- Auto-generated "optimal bracket" (users distrust what they can't inspect; show value signals and let user decide)
+- Expected score calculator against simulated opponent field (requires MC over opponent distribution; materially higher complexity)
 
-**Defer indefinitely:**
-- Real-time tournament update mode — complex live data feed, marginal bracket value
-- Multiple bracket flavors (optimal, contrarian, upset-heavy) — build one good bracket first
-- Women's tournament — separate data, models, and bracket; doubles scope
-- Multi-user/social features — out of scope for personal tool
-- Real-money gambling integration — out of scope
+**UI Matchup Context — must have:**
+- Side-by-side stat comparison for any bracket game: seed, team name, win probability, barthag (shown as "% chance vs. average D1 team"), adjOE rank, adjDE rank, wab
+- Direction indicator per metric (advantage annotation with +/- and color)
+- Clickable panel integrated with existing override expanders (additive — not a rebuild of the bracket SVG)
+
+**UI Matchup Context — should have:**
+- Advancement probability sparkline per team (MC probs already computed; low-cost addition)
+- Color-coded advantage display (green/red per metric, KenPom pattern)
+- Historical seed matchup win rate (DuckDB query against `tournament_games.parquet`)
+
+**UI Matchup Context — defer:**
+- SHAP feature importance per matchup (adds shap library dependency)
+- Four-factor breakdown (eFG%, TO%, OR%, FTR) requiring additional data ingestion
+- Live stat updates during tournament (different product category)
+
+**Model Retraining — must have:**
+- Add 2026-03-15 to `SELECTION_SUNDAY_DATES` in `cutoff_dates.py`
+- Add 2026 to `BACKTEST_YEARS` in `temporal_cv.py` (one-line constant change)
+- Parameterize current-season year in `build_stats_lookup()` (currently hard-coded to 2025)
+- Data availability gate: do not retrain until cbbdata has 2025-26 barthag populated
+- Pre/post Brier comparison before overwriting `models/selected.json`
+- Artifact backup before any retrain (`ensemble_v1.0.joblib`)
+
+**Model Retraining — defer:**
+- Hyperparameter re-tuning (only if Brier regresses post-retrain)
+- Feature importance drift analysis (informative, not blocking)
+- Automated retraining pipeline/CI (once-per-year personal tool; 50-line script is sufficient)
 
 ### Architecture Approach
 
-The architecture is five independently testable layers with strict left-to-right data flow: Data Pipeline → Feature Store → Model Layer → Bracket Simulator → Web UI, with the Backtest Harness as a side-channel that replays the pipeline against historical snapshots. No layer communicates backward — the Web UI can send override signals back to the Simulator, but the Simulator does not write back to the Model Layer. This separation is what makes model swapping and backtesting feasible without full rewrites.
+The v1.1 architecture is purely additive to the existing five-layer pipeline (Data Pipeline → Feature Store → Model Layer → Bracket Simulator → Web UI). Three new components slot in cleanly: `src/pool/optimizer.py` reads `mc_result["advancement_probs"]` already cached by the UI; `src/ui/matchup_context.py` reads `stats_lookup` already in memory and renders inside the existing override expanders; `scripts/retrain.py` orchestrates the existing ingest → features → train → compare flow via CLI, never inside Streamlit. The existing `predict_fn(team_a_id, team_b_id) -> float` interface must not be modified — every downstream component depends on this boundary.
 
-The bracket simulator has two operating modes: deterministic (pick highest-probability team each round, produces one definitive bracket) and Monte Carlo (Bernoulli draws, 10,000 runs, produces confidence distributions). Both are required — deterministic for the primary bracket output, Monte Carlo for calibration validation and upset analysis. The override mechanism works by storing a `{slot_id: team_id}` map and re-running `simulate_bracket()` from scratch on each override — this is simpler than surgical downstream propagation and fast enough (milliseconds per simulation) to be imperceptible.
+**New components (5 new files):**
 
-**Major components:**
-1. Data Pipeline — fetch, clean, persist raw game and team data from ESPN/CBBpy, cbbdata API, and Kaggle; output normalized game records to SQLite and Parquet
-2. Feature Store — compute derived metrics per team-season (adjOE, adjDE, barthag, tempo, SOS, recent form, Elo); output feature vectors for matchup pairs
-3. Model Layer — train and serve stacking ensemble; output calibrated P(team_a beats team_b) for any matchup; save trained models with joblib
-4. Bracket Simulator — fill all 67 tournament games using win probabilities; produce bracket JSON with slot addressing; support override map injection
-5. Backtest Harness — replay Feature Store → Model → Simulator against historical tournament snapshots; output per-year, per-model accuracy and Brier score table
-6. Web UI — Streamlit app displaying filled bracket as programmatic SVG, per-game probabilities, and override controls
+| Component | Path | Responsibility |
+|-----------|------|---------------|
+| Pool optimizer | `src/pool/optimizer.py` | Pure computation: `compute_pool_strategy(mc_result, field_size, scoring_system)` returns value table |
+| Pool UI loader | `src/ui/pool_loader.py` | `@st.cache_data` wrapper; follows `data_loader.py` caching pattern |
+| Matchup context builder | `src/ui/matchup_context.py` | `build_matchup_context(team_a_id, team_b_id, season, _stats_lookup)` |
+| Seed history query | `src/ui/seed_history.py` | `@st.cache_data` DuckDB query for historical seed vs. seed win rates |
+| Retrain script | `scripts/retrain.py` | CLI: ingest → build features → train → validate → swap artifact |
+
+**Existing files requiring modification (4 files):**
+
+| File | Change Required |
+|------|----------------|
+| `src/ui/data_loader.py` | Add `load_stats_lookup_cached(season)` — single call site for stats_lookup across all UI features |
+| `src/ui/override_controls.py` | Add `st.expander("Team stats")` inside existing slot expanders (additive only) |
+| `src/models/features.py` | Parameterize current-season year in `build_stats_lookup()` (remove hard-coded 2025) |
+| `src/models/temporal_cv.py` | Update `BACKTEST_YEARS` constant to include 2026 |
+
+**Caching rules to follow** (per existing conventions in `data_loader.py`):
+- `load_stats_lookup_cached(season)`: `@st.cache_data` — large dict but serializable; season is the cache key
+- `build_matchup_context(team_a_id, team_b_id, season, _stats_lookup)`: underscore prefix on `_stats_lookup` to exclude from hashing
+- `load_seed_matchup_history(seed_a, seed_b)`: `@st.cache_data` — integer args; no hash_funcs needed
+- `compute_pool_strategy_cached(_mc_result, field_size)`: underscore prefix on `_mc_result`
 
 ### Critical Pitfalls
 
-The five critical pitfalls all share a root cause: treating data carelessly during feature engineering and validation. All five are preventable by design choices made in Phases 1-3 before any model training.
+1. **Pool optimizer outputs a chalk bracket, not a contrarian bracket** — happens when the optimizer reuses `simulate_bracket(mode='deterministic')` output rather than implementing a separate code path that accounts for public pick popularity. The warning signs are unambiguous: if the optimizer champion is always a #1 or #2 seed and the output bracket is identical to the deterministic bracket, the feature has no strategic value. Prevention: `EV(pick) ∝ P(team advances to slot) / P(public picks that team at that slot)`. This ratio — not raw win probability — is the output that needs to be computed.
 
-1. **Data leakage from post-tournament data into training features** — Enforce a hard cutoff date for all feature computation: data must be as-of Selection Sunday for each backtest year. Full-season stats scraped from season-end summaries include games played after the bracket was set. Flag for Phase 1-2. Detection: training accuracy above 78-80% is a red flag.
+2. **No free structured API for public pick percentages — contrarian logic needs a documented baseline** — ESPN's "Who Picked Whom" comprehensive breakdown is discontinued as a structured endpoint. Getting actual ownership data requires scraping or a paid service. Prevention: use historically calibrated seed-based pick-popularity priors as the MVP baseline (well-documented in PoolGenius research); after bracket announcement, scrape the ESPN Tournament Challenge champion pick percentage page (available publicly post-Selection Sunday); document the data source assumption explicitly in the UI.
 
-2. **K-fold cross-validation on tournament games** — Tournament years are not exchangeable samples. Use walk-forward temporal splits only: train on years T-N through T-1, evaluate on T. Never let future tournament outcomes appear in a training fold. Flag for Phase 3.
+3. **Model retraining with mismatched season data silently degrades performance** — if 2025-26 Torvik ratings have different column schema, null handling, or value distributions from the 2024-25 proxy data, the retrained model can embed shifted feature distributions without throwing an error. The ClippedCalibrator `[0.05, 0.89]` bounds may no longer be appropriate. Prevention: diff the new `current_season_stats.parquet` against the proxy on column names, value ranges (mean/std for barthag, adj_o, adj_d), and null count before triggering any retrain; run the multi-year backtest after retraining and require Brier not to regress beyond 0.01 from the 0.1692 baseline.
 
-3. **Chalk-biased model from class imbalance** — The favorite wins ~71% of historical games; a model trained without imbalance handling learns to always pick the favorite. Evaluate with Brier score and log-loss, not accuracy. Apply class weights or resampling. Validate with Monte Carlo: if fewer than 5% of 10,000 simulations include even one 10+ seed in the Sweet 16, probabilities are miscalibrated. Flag for Phase 3-4.
+4. **cbbdata 2025-26 data not available by tournament tip-off — no documented fallback decision** — year=2026 returns empty as of 2026-03-13 (confirmed in `cbbdata_client.py` comments). Prevention: formalize the decision tree now: if 2025-26 data is not indexed by EOD 2026-03-14, deploy the v1.0 model explicitly labeled "2024-25 proxy data" and stop waiting. The v1.0 model (Brier 0.1692) is a fully valid deployment path.
 
-4. **Backtesting only on 2025** — 2025 was historically chalk (all four #1 seeds in Final Four; second time in 38 years). A model that scores well on 2025 alone may simply be a chalk model. Multi-year backtest is mandatory: include 2022 (Saint Peter's Elite Eight), 2023 (FAU Final Four), 2024 (NC State run), and 2025. Flag for Phase 3.
-
-5. **Transfer portal era breaks historical team identity assumptions** — Since 2021, 53% of tournament rotation players previously played at another D-I school. Multi-year team trend features (momentum, consistency, tournament experience) are unreliable for 2022+ seasons. Use season-bounded features only as primary inputs. Flag for Phase 2.
+5. **v1.1 changes break the working v1.0 app before tournament tip-off** — a broken app on 2026-03-19 is total project failure. Prevention: `git tag v1.0-stable` before any v1.1 development begins; run an E2E smoke test (bracket renders, MC simulation runs, overrides work, champion displayed) after each significant change; if the app is broken on the morning of 2026-03-19, revert to v1.0-stable immediately without attempting last-minute fixes.
 
 ---
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure (7 phases, matching architecture build order):
+The Selection Sunday constraint (2026-03-15, 48 hours from research date) makes phase ordering critical. The three features are largely independent but share one prerequisite (data refresh decision) and one shared risk (breaking existing flows). The recommended build order prioritizes stability first, then highest business value, then lower-priority enrichment.
 
-### Phase 1: Data Pipeline and Historical Backfill
-**Rationale:** Everything is blocked without data. Team name normalization across sources (Sports-Reference, ESPN, cbbdata) is the hardest data problem and must be solved here, not retrofitted later. The Kaggle dataset gives 20+ years of structured tournament data immediately; CBBpy covers current-season games. These two together eliminate the need to build a full custom scraper.
-**Delivers:** Normalized game records in SQLite and Parquet files; team name normalization table; data covering 2003-2025 seasons; verified data cutoff enforcement (stats as of Selection Sunday per year)
-**Addresses features from FEATURES.md:** Historical data pipeline (2010-2025), team name normalization, auto-fetch bracket data (build fetcher with ESPN + NCAA.com + manual CSV fallback)
-**Avoids pitfalls:** Data leakage (enforce cutoff dates here, in the ingestion layer); tournament format contamination (explicitly flag First Four games per year); scraping rate limits (cache all scraped data on first fetch)
-**Research flag:** Standard patterns for CBBpy and Kaggle dataset; ESPN unofficial API endpoint format needs verification when 2026 bracket is published
+### Phase 0: Stability Baseline
 
-### Phase 2: Feature Store and Feature Engineering
-**Rationale:** Raw stats cannot be fed to models directly. This phase computes the derived metrics (adjOE, adjDE, barthag, tempo, SOS, recent form) that are the actual model inputs. This is where seed bias and multicollinearity are addressed — by choosing efficiency-based metrics over raw seeds as primary signals. Perspective flipping (storing each game twice with labels swapped) must be implemented here for model calibration.
-**Delivers:** `compute_features(team_a, team_b, season)` function with tests; feature vectors for all historical matchup pairs; VIF analysis confirming no collinear features
-**Addresses features from FEATURES.md:** Adjusted efficiency metrics as model inputs; strength of schedule; recent form
-**Avoids pitfalls:** Seed bias (use Torvik/cbbdata efficiency metrics, not raw seeds, as primary strength signals); multicollinearity (run VIF analysis, exclude AdjEM if AdjO and AdjD are both included); transfer portal era (season-bounded features only, test multi-year trend features separately)
-**Research flag:** Standard patterns well-documented in academic literature; no additional research needed
+**Rationale:** A broken app at tournament tip-off is total failure. This phase creates the rollback safety net that makes all parallel v1.1 work safe to attempt.
+**Delivers:** `git tag v1.0-stable`; confirmed E2E smoke test passes; `bracket_manual.csv` pre-populated with bracketology projections as Selection Sunday fallback
+**Addresses:** Pitfall V1.1-T5 (app broken at tip-off), Pitfall V1.1-T2 (bracket fetch fails on Selection Sunday)
+**Time estimate:** 1-2 hours
+**Research flag:** None — standard git operations and smoke testing
 
-### Phase 3: Baseline Model and Temporal Validation Infrastructure
-**Rationale:** Start with logistic regression — it gives calibrated probabilities fast and is highly interpretable. But more importantly, this phase builds the temporal validation infrastructure that all subsequent model comparison depends on. Walk-forward temporal splits must be established before adding more model types, or backtest results will be meaningless. Brier score and log-loss must be the primary metrics from day one.
-**Delivers:** Trained logistic regression baseline model saved to disk; walk-forward temporal validation harness; Brier score and log-loss evaluation pipeline; first multi-year backtest results (2022-2025)
-**Uses stack:** scikit-learn 1.8.0 (LogisticRegression, StratifiedKFold), joblib (model persistence), optuna (when hyperparameter tuning is needed in Phase 4)
-**Avoids pitfalls:** K-fold CV on tournament years (temporal splits only); chalk bias (Brier score as primary metric); single-year backtesting (multi-year validation established here as the standard)
-**Research flag:** Standard ML patterns; no additional research needed
+### Phase 1: Data Refresh + Retraining Decision
 
-### Phase 4: Bracket Simulator (Deterministic and Monte Carlo)
-**Rationale:** Once a baseline model exists, the bracket simulator can be built and tested against historical brackets. The slot addressing scheme (e.g., R1_W01, R2_W01 with parent-child relationships) must be designed correctly here — a flat list representation cannot support override cascading and must be rebuilt if designed wrong. Both simulation modes (deterministic and Monte Carlo) should be built together since they share the same underlying algorithm.
-**Delivers:** `simulate_bracket(seedings, predict_fn, override_map)` function; bracket JSON output with full slot addressing; Monte Carlo bracket runner (N=10,000); calibration validation (Monte Carlo distributions should show plausible upset rates)
-**Addresses features from FEATURES.md:** Round-by-round advancement probabilities; champion probability; predicted score/margin (secondary output)
-**Avoids pitfalls:** Flat bracket representation (slot-based addressing required from day one); miscalibrated probabilities (Monte Carlo calibration check: <5% simulations with no 10+ seeds in Sweet 16 is a failure signal); greedy bracket filling (optimize for expected score, not per-game probability)
-**Research flag:** Standard simulation patterns; no additional research needed
+**Rationale:** Everything downstream depends on knowing which season's data is live. This decision gates retraining and must be made before the bracket is announced.
+**Delivers:** `current_season_stats.parquet` refresh attempt; explicit go/no-go decision on retraining; `SELECTION_SUNDAY_DATES` updated for 2026 in `cutoff_dates.py`; data vintage label surfaced in UI sidebar
+**Addresses:** Pitfall V1.1-C4 (no fallback plan for unavailable data), Pitfall V1.1-M3 (UI shows stats from wrong season)
+**Hard cutoff:** If 2025-26 data not available by EOD 2026-03-14, deploy v1.0 model and label it "2024-25 proxy data" — do not delay
+**Time estimate:** 2-3 hours including validation if data becomes available
+**Research flag:** Data availability is LOW confidence — confirmed empty as of 2026-03-13; must be re-checked by EOD 2026-03-14
 
-### Phase 5: Backtesting Harness and Model Comparison
-**Rationale:** The backtesting harness is what selects the ensemble. It must replay the Feature Store → Model → Simulator pipeline against historical tournament snapshots with strict data cutoff enforcement. Multi-year evaluation across variance profiles (2022 chaos, 2023 chaos, 2024 moderate, 2025 chalk) is what distinguishes a calibrated model from a chalk-biased one.
-**Delivers:** `backtest(year_range, models)` → multi-year, multi-model comparison table with per-round accuracy, ESPN bracket score, Brier score, and upset detection rate; model selection recommendation
-**Addresses features from FEATURES.md:** Backtesting against prior tournaments; performance benchmark vs. chalk and published models
-**Avoids pitfalls:** Single-year backtesting; data leakage in historical replay; temporal CV violations
-**Research flag:** Standard patterns well-documented; the specific Brier score targets by model type could use deeper research during planning if quantitative thresholds are needed
+### Phase 2: Pool Strategy Optimizer
 
-### Phase 6: Ensemble and Advanced Models
-**Rationale:** Ensemble composition should be guided by backtest results, not assembled speculatively. Only after Phase 5 produces a comparison table is it clear which base models improve the ensemble and how to weight them. Adding XGBoost and LightGBM here — not in Phase 3 — prevents premature optimization on models whose relative value is unknown.
-**Delivers:** XGBoost 3.2.0 and LightGBM 4.6.0 base models; scikit-learn StackingClassifier with logistic regression meta-learner; calibrated ensemble output (Platt scaling or isotonic regression applied if calibration curves show bias); updated backtest comparison table with ensemble vs. individual models
-**Uses stack:** XGBoost 3.2.0, LightGBM 4.6.0, scikit-learn StackingClassifier, optuna (hyperparameter tuning)
-**Avoids pitfalls:** One-model-one-bracket (comparison infrastructure already exists from Phase 5); round-specific calibration ignored (analyze per-round performance, optionally add round number as a feature)
-**Research flag:** XGBoost and LightGBM hyperparameter tuning for this specific domain could benefit from research-phase review; Kaggle March Mania winning solutions are the best source
+**Rationale:** Highest-value stated v1.1 goal. Independent of UI enrichment. Reads `mc_result` already in memory, so it can begin in parallel with Phase 1. Must ship before Selection Sunday to inform actual bracket submission.
+**Delivers:** `src/pool/optimizer.py` with `compute_pool_strategy()`; `src/ui/pool_loader.py` with cache wrapper; Pool Strategy tab in `app.py`; pick percentage manual input UI; champion value recommendation callout; pool size input with strategy threshold warning at < 50 entrants
+**Implements:** Integration Point B (pool optimizer) from ARCHITECTURE.md
+**Addresses:** Pitfall V1.1-C1 (chalk bracket instead of contrarian), Pitfall V1.1-C2 (no pick popularity baseline), Pitfall V1.1-M2 (scoring system not configurable), Pitfall V1.1-M6 (small pool effect)
+**MVP scope:** Value table for champion + Final Four slots; manual pick percentage input; standard scoring default (1-2-4-8-16-32) with configurable weights; pool size dropdown
+**Defer:** Full 7-round value table, expected score calculator, automated pick percentage fetch
+**Research flag:** Pool optimizer algorithm is MEDIUM confidence — EV formula is industry-standard but the pick popularity estimation for the baseline requires a documented assumption. Build the baseline assumption as an explicit, swappable input.
 
-### Phase 7: Streamlit UI with Bracket Visualization and Override Support
-**Rationale:** The UI is the last layer and depends on a stable bracket JSON contract from the Simulator. Building it before the model produces trusted outputs inverts priorities. The bracket SVG must be generated programmatically in Python using `st.components.v1.html()` — no JavaScript build tooling. Override support requires re-running the full simulation on each toggle (fast enough at milliseconds per run).
-**Delivers:** Streamlit application displaying full 68-team bracket as programmatic SVG; per-game win probabilities; round-by-round advancement table; champion probability; manual override picks with downstream cascade recalculation; injury override mechanism (manual probability adjustment per team before bracket submission)
-**Addresses features from FEATURES.md:** Full 68-team bracket display; interactive bracket with override picks; downstream cascade visualization; pool-strategy output
-**Uses stack:** Streamlit 1.54.0, Plotly, `st.components.v1.html()`, `st.session_state` for bracket pick state
-**Avoids pitfalls:** Premature UI polish before model validation (model is validated by the time this phase starts); flat bracket representation (slot-based JSON contract already established in Phase 4)
-**Research flag:** Programmatic SVG bracket layout for 68 teams is non-trivial; may benefit from research-phase review during planning to identify existing Python SVG generation approaches or bracket layout algorithms
+### Phase 3: UI Matchup Context Enrichment
+
+**Rationale:** Delivers good UX but does not change what bracket gets submitted — lower priority than the optimizer. Must be strictly time-boxed.
+**Delivers:** `src/ui/matchup_context.py`; `src/ui/seed_history.py`; `load_stats_lookup_cached()` in `data_loader.py`; matchup stats panel inside existing override expanders in `override_controls.py`
+**Implements:** Integration Point C (UI enrichment) from ARCHITECTURE.md
+**Addresses:** Pitfall V1.1-M3 (data vintage labeling), Pitfall V1.1-T4 (scope creep consuming optimizer time)
+**Hard time-box:** Show the 6 FEATURE_COLS (adjoe_diff, adjde_diff, barthag_diff, seed_diff, adjt_diff, wab_diff) plus win probability and historical seed matchup win rate. No additional data sources until Phase 2 (pool optimizer) is verified complete and working.
+**Defer:** SHAP feature importance, four-factor breakdown, historical tournament records per team
+**Research flag:** None — established Streamlit patterns; follow `data_loader.py` conventions precisely
+
+### Phase 4: Model Retraining (Conditional)
+
+**Rationale:** Conditional on Phase 1 go/no-go. If 2025-26 data becomes available, run this after the pool optimizer is working — do not let retraining block optimizer development.
+**Delivers:** Updated `BACKTEST_YEARS` and `build_stats_lookup()` year parameterization; `scripts/retrain.py` orchestration script; retrained `ensemble.joblib` with pre/post Brier comparison; artifact backup at `ensemble_v1.0.joblib`
+**Implements:** Integration Point A (model retraining) from ARCHITECTURE.md
+**Addresses:** Pitfall V1.1-C3 (schema mismatch silent degradation), Pitfall V1.1-M5 (artifact overwrite without backup), Pitfall V1.1-T3 (retrain blocks bracket filling)
+**If data unavailable:** Deploy v1.0 model with "2024-25 proxy data" label; retraining becomes a post-tournament task (after April 2026 when cbbdata indexes season-end ratings)
+**Research flag:** Retraining pipeline mechanics are HIGH confidence (derived from direct code audit). Data availability is LOW confidence.
 
 ### Phase Ordering Rationale
 
-- The 5-layer dependency chain (Data → Features → Model → Simulator → UI) is fixed by data flow: you cannot compute features without clean data, cannot train a model without features, cannot simulate without a model, cannot build a meaningful UI without simulation output. Any deviation creates rework.
-- Backtesting (Phase 5) comes after the baseline model (Phase 3) and simulator (Phase 4) because it requires both as inputs — but before ensemble (Phase 6) because ensemble composition should be informed by backtest evidence.
-- The ensemble (Phase 6) is deliberately separated from the baseline model (Phase 3) to prevent premature optimization. Adding XGBoost before logistic regression is validated and compared is a common time sink.
-- The UI (Phase 7) is last because it depends on a stable bracket JSON contract. Building it earlier means rebuilding it as model outputs change shape — documented explicitly as an anti-pattern in FEATURES.md.
-- The hard external dependency is Selection Sunday 2026 (mid-March). Phase 1 (data pipeline and auto-fetch) must be operational before that date. Phases 2-6 need to be complete before Selection Sunday to be useful. Phase 7 (UI) can be completed concurrently with Phases 5-6 once the bracket JSON contract is stable.
+- Phase 0 before everything: a broken app at tournament time is total failure; the safety tag costs 30 minutes and eliminates that risk.
+- Phase 1 before Phase 4: the retraining decision must be made before spending engineering time on it; data availability gates the entire retrain path.
+- Phase 2 before Phase 3: the pool optimizer directly answers "which bracket do I submit to the pool." UI enrichment is informational. The research explicitly identifies scope creep on UI as a top time-pressure failure mode.
+- Phase 4 is conditional: it runs if data is available; if not, it is deferred until post-tournament. This prevents it from blocking any other phase.
+- Phases 2 and 3 can be parallelized if time allows — they share no hard code dependencies beyond `load_stats_lookup_cached()`, which should be added to `data_loader.py` first.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 1 (Data Pipeline):** ESPN unofficial API endpoint format for 2026 bracket needs verification when bracket is published. NCAA.com JSON endpoint format has historically been stable but is undocumented. Auto-fetch reliability on Selection Sunday is a one-shot operation with no retry window.
-- **Phase 6 (Ensemble):** XGBoost and LightGBM hyperparameter ranges for this specific domain (tabular matchup prediction, ~10 features, ~20 years of tournament data) are not well-constrained by existing research. Kaggle March Mania solution notebooks are the best source; a research-phase review would improve optuna search space definition.
-- **Phase 7 (UI/SVG Bracket):** Programmatic SVG layout for a 68-team single-elimination bracket with First Four games is non-trivial geometry. A research-phase review to identify existing Python SVG layout approaches or bracket coordinate generation algorithms would save implementation time.
+Phases needing particular care during implementation:
 
-Phases with standard patterns (skip research-phase):
-- **Phase 2 (Feature Store):** Efficiency metric computation is well-documented in academic literature and open-source projects. VIF analysis is standard scikit-learn.
-- **Phase 3 (Baseline Model):** Logistic regression with temporal CV is a standard ML pattern. Brier score evaluation is fully documented.
-- **Phase 4 (Bracket Simulator):** Single-elimination bracket traversal is a solved algorithm. Monte Carlo simulation is standard.
-- **Phase 5 (Backtesting):** Walk-forward temporal validation is standard; replay pipeline structure is clear from architecture research.
+- **Phase 1 (Data Refresh):** Data availability is LOW confidence. Document the go/no-go decision explicitly — the fallback path is as valid as the retrain path, but it must be a deliberate labeled choice.
+- **Phase 2 (Pool Optimizer):** The pick popularity estimation baseline is MEDIUM confidence. The EV formula is industry-standard; the source of `pick_pct` when no ESPN data is available requires a documented assumption (seed-based priors). The optimizer must make this assumption visible to the user, not hide it.
+- **Phase 4 (Retraining):** The data diff step (schema and distribution validation before retrain) is not in the existing pipeline. It must be added before trusting any retrain output.
+
+Phases with established patterns (minimal implementation risk):
+
+- **Phase 0 (Stability):** Standard git operations.
+- **Phase 3 (UI Enrichment):** Streamlit `st.dialog`, `@st.cache_data` with underscore-prefix convention, and DuckDB queries are all established patterns in the codebase. Follow `data_loader.py` exactly.
 
 ---
 
@@ -179,60 +204,49 @@ Phases with standard patterns (skip research-phase):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All library versions verified at PyPI as of 2026-03-02. CBBpy, XGBoost, LightGBM, pandas, DuckDB, Streamlit versions confirmed. ESPN unofficial API marked MEDIUM — no stability guarantee. |
-| Features | HIGH | Multiple independent sources agree on table stakes (KenPom, Nate Silver, PoolGenius, NCAA.com, open-source projects). 2025 tournament data confirms efficiency-first approach. Feature dependency order is unambiguous. |
-| Architecture | MEDIUM-HIGH | Five-layer pipeline pattern verified against academic papers (arXiv 2503.21790, 2508.02725) and open-source projects (pjmartinkus/College_Basketball). Override cascade mechanism is design-level, not empirically verified. |
-| Pitfalls | MEDIUM | Pitfalls are practitioner-consensus and partially peer-reviewed (data leakage and temporal CV are well-documented; transfer portal impact is verified with 2025 data; chalk bias is documented in multiple sources). Committee seeding bias data is from 2013 and may not reflect current committee behavior. |
+| Stack | HIGH | All versions verified against live venv; `st.dialog` and `st.popover` confirmed in Streamlit 1.55.0 changelog; no new dependencies required |
+| Features | HIGH (pool optimizer domain), MEDIUM (pick popularity data) | Pool optimizer EV framework is well-established across practitioner sources. The data source for public pick percentages has no clean free API — this is a known gap resolved by design decision (seed-based priors as MVP baseline), not by additional research |
+| Architecture | HIGH | Derived from direct audit of 12,400+ lines across 167 files; integration points confirmed by reading actual function signatures and output contracts; no assumptions |
+| Pitfalls | HIGH (code-grounded), MEDIUM (domain) | Code-grounded pitfalls (schema mismatch, bracket slot contract, cache invalidation) are HIGH; domain pitfalls (pool strategy failure modes) are MEDIUM from practitioner sources |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH for technical execution; MEDIUM for pool strategy output quality (depends on pick popularity data accuracy)
 
 ### Gaps to Address
 
-- **ESPN unofficial API stability on Selection Sunday 2026:** The auto-fetch bracket pipeline must be built with fallback to manual CSV entry. This is a one-time operation with no retry window if the API changes format. Verify endpoint behavior when the 2026 bracket is published; do not assume the 2025 endpoint format is stable.
-- **cbbdata API key acquisition:** Free key requires registration at cbbdata.aweatherman.com. Must be obtained before Phase 1 begins. Verify the REST API is accessible from Python (documentation is R-centric).
-- **Kaggle dataset update timing:** The March Machine Learning Mania 2026 dataset is likely not yet published (tournament hasn't happened). Historical data (2003-2025) should be available. Confirm whether 2025 season data is included in the current Kaggle dataset version.
-- **First Four bracket representation:** The tournament has 68 teams with 4 play-in games producing the 64-team field. The data contract (bracket JSON) and simulator must handle First Four games explicitly. Kaggle datasets have historically treated this inconsistently; resolve during Phase 1.
-- **Accuracy ceiling expectation-setting:** The empirically verified accuracy ceiling is 74-76% per-game. This should be documented as a success criterion in project documentation so that a well-calibrated 74% model is recognized as a success, not a failure. Beating this ceiling is not a design goal.
-- **2026 injury report integration:** NCAA announced official pre-game injury reports for 2026 (rule change). These reports are available the night before and 2 hours before each game. The override mechanism in Phase 7 should explicitly support manual probability adjustment based on injury reports — this is a new data source not available in historical seasons.
+- **Public pick percentage data source:** No free structured API exists for actual pool field pick rates. Resolution: use historically calibrated seed-based pick-popularity priors as MVP baseline; document the assumption explicitly in the UI tooltip or sidebar; after bracket announcement, scrape the ESPN Tournament Challenge champion pick % page (publicly available post-Selection Sunday).
+
+- **cbbdata 2025-26 data availability:** Confirmed unavailable as of 2026-03-13. Resolution: re-check by EOD 2026-03-14; make the go/no-go decision explicit and documented; deploy v1.0 with proxy data label if unavailable.
+
+- **ClippedCalibrator bounds for retrained model:** The `[0.05, 0.89]` bounds were set on the 2024-25 proxy distribution. If 2025-26 had unusual parity or dominance, these bounds may not be optimal after retraining. Resolution: run `plot_calibration()` (already exists in `ensemble.py`) for old vs. new model before deploying the retrained artifact.
+
+- **ESPN bracket fetch post-announcement behavior:** The auto-fetch pipeline was built but not tested against real post-announcement data. Resolution: pre-populate `bracket_manual.csv` from bracketology projections now; use as fallback if auto-fetch returns unexpected format.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- https://pypi.org/project/xgboost/ — XGBoost 3.2.0 version verification
-- https://pypi.org/project/scikit-learn/ — scikit-learn 1.8.0, Python >=3.11 requirement
-- https://pypi.org/project/lightgbm/ — LightGBM 4.6.0 version verification
-- https://pypi.org/project/pandas/ — pandas 3.0.1, Python >=3.11 requirement
-- https://pypi.org/project/duckdb/ — DuckDB 1.4.4 version verification
-- https://pypi.org/project/streamlit/ — Streamlit 1.54.0, Python >=3.10
-- https://pypi.org/project/CBBpy/ — CBBpy 2.1.2, ESPN-backed, actively maintained
-- https://www.kaggle.com/competitions/march-machine-learning-mania-2025/ — Kaggle March Machine Learning Mania dataset (2003-2025)
-- https://arxiv.org/html/2503.21790v1 — Mathematical Modeling NCAA Bracket (Logistic Regression + Monte Carlo), academic
-- https://arxiv.org/html/2508.02725v1 — LSTM/Transformer for NCAA Forecasting, temporal validation, calibration vs. discrimination tradeoff
-- https://github.com/pjmartinkus/College_Basketball — Five-stage pipeline, covariate shift analysis (open-source, verified)
-- https://kenpom.substack.com/p/2025-ncaa-tournament-probabilities — KenPom 2025 methodology
-- https://www.natesilver.net/p/2025-march-madness-ncaa-tournament-predictions — Nate Silver 2025 methodology (6-system ensemble, injury recalibration)
-- https://poolgenius.teamrankings.com/ncaa-bracket-picks/articles/bracket-strategy-guide/ — PoolGenius bracket strategy (contrarian picks, 3.1x win rate improvement documented)
-- sports.yahoo.com — 2025 all four #1 seeds in Final Four confirmed fact
-- CNBC.com — 53% of 2025 tournament rotation players previously at another D-I school (transfer portal data)
+### Primary (HIGH confidence — direct codebase inspection or official docs)
 
-### Secondary (MEDIUM confidence)
-- https://cbbdata.aweatherman.com/articles/release.html — cbbdata API is free, barttorvik-backed REST API
-- https://github.com/pseudo-r/Public-ESPN-API — ESPN unofficial API endpoints
-- https://poolgenius.teamrankings.com — Contrarian value picks methodology, upset rate analysis
-- https://jtmarcu.github.io/projects/march-madness.html — Random Forest implementation, AUC 0.753
-- https://blog.collegefootballdata.com/talking-tech-march-madness-xgboost/ — XGBoost for bracket prediction practitioner analysis
-- https://www.kaggle.com/code/sadettinamilverdil/ncaa-basketball-predictions-with-xgboost — XGBoost Kaggle notebook
-- https://www.researchgate.net/publication/257749099 — Academic confirmation of ~75% accuracy ceiling
-- https://adeshpande3.github.io/Applying-Machine-Learning-to-March-Madness — Chalk bias in gradient boosted models (practitioner)
-- https://www.ncaa.com/news/basketball-men/bracketiq/2026-02-24/5-ncaa-bracket-tips-learned-studying-every-bracket-challenge-game-winner-2015 — NCAA bracket challenge winner analysis
+- `src/ingest/cbbdata_client.py`, `src/models/ensemble.py`, `src/models/features.py`, `src/models/temporal_cv.py`, `src/simulator/simulate.py`, `src/ui/data_loader.py`, `src/ui/override_controls.py`, `app.py` — all integration points and data contracts verified by direct read
+- Streamlit 1.55.0 release notes and API docs — `st.dialog`, `st.popover` availability confirmed
+- pypi.org/project/scipy, numpy, joblib — installed version confirmation via live venv
+- `cbbdata_client.py` line 113 comment — 2025-26 data unavailability confirmed
+- `models/ensemble.joblib` inspection — artifact structure and version metadata confirmed
 
-### Tertiary (LOW confidence)
-- https://data.ncaa.com/casablanca/scoreboard/ — NCAA JSON bracket endpoint (developer community reports; verify when 2026 bracket is published)
-- https://keepingscore.blogs.time.com/2013/03/15/ — Committee seeding bias toward major conferences (2013 data; may not reflect current committee)
-- barttorvik.com — Cloudflare bot protection confirmed; direct scraping is not viable; use cbbdata API instead
+### Secondary (MEDIUM confidence — practitioner sources, multiple-source corroboration)
+
+- PoolGenius Bracket Picks FAQ and Risk-Value Framework — pool optimizer EV formula framework (WebFetch verified)
+- Syracuse University Analytics Professor interview 2026-03-11 — pool size thresholds (< 50 chalk, > 100 contrarian) (WebFetch verified)
+- ActionNetwork and Establish The Run bracket pool strategy guides — contrarian leverage methodology
+- arXiv 2508.02725v1 (peer-reviewed) — temporal validation, calibration, retraining risks
+
+### Tertiary (LOW confidence — access-restricted or inferred)
+
+- FTN Fantasy Advanced Bracket Strategies — 403 on WebFetch; findings corroborated by other sources
+- ESPN "Who Picked Whom" comprehensive breakdown — discontinued; pick percentage availability is a known gap with no resolution other than scraping or manual entry
 
 ---
-*Research completed: 2026-03-02*
+
+*Research completed: 2026-03-13*
+*Supersedes: 2026-03-02 v1.0 SUMMARY.md (available in git history)*
 *Ready for roadmap: yes*
